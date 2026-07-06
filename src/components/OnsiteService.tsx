@@ -71,6 +71,7 @@ export default function OnsiteServiceTab({
   const [resolutionDate, setResolutionDate] = useState('');
   const [symptoms, setSymptoms] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
+  const [cause, setCause] = useState('');
   const [actionTaken, setActionTaken] = useState('');
   const [remarks, setRemarks] = useState('');
   const [status, setStatus] = useState<'Open' | 'In Progress' | 'Pending' | 'Resolved'>('Open');
@@ -117,6 +118,7 @@ export default function OnsiteServiceTab({
     setResolutionDate(today);
     setSymptoms('');
     setDiagnosis('');
+    setCause('');
     setActionTaken('');
     setRemarks('');
     setStatus('Open');
@@ -147,6 +149,7 @@ export default function OnsiteServiceTab({
     setResolutionDate(job.resolutionDate || '');
     setSymptoms(job.symptoms || '');
     setDiagnosis(job.diagnosis || '');
+    setCause(job.cause || '');
     setActionTaken(job.actionTaken || '');
     setRemarks(job.remarks || '');
     setStatus(job.status || 'Open');
@@ -268,6 +271,7 @@ export default function OnsiteServiceTab({
       resolutionDate,
       symptoms,
       diagnosis,
+      cause,
       actionTaken,
       remarks,
       status,
@@ -295,7 +299,7 @@ export default function OnsiteServiceTab({
       'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
       'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
       'ผู้ปฏิบัติงาน 1', 'ผู้ปฏิบัติงาน 2', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่เข้าปฏิบัติงาน', 
-      'วันที่แก้ไขเสร็จงาน', 'สถานะ'
+      'วันที่แก้ไขเสร็จงาน', 'สถานะ', 'บรรยายรับแจ้งอาการ', 'ขั้นตอนการตรวจสอบ', 'สาเหตุ', 'การแก้ไข', 'หมายเหตุ'
     ];
     const data = onsiteJobs.map(j => ({
       'เลขที่ใบงาน': j.jobNo,
@@ -314,7 +318,12 @@ export default function OnsiteServiceTab({
       'วันที่รับแจ้ง': j.receivedDate,
       'วันที่เข้าปฏิบัติงาน': j.startServiceDate,
       'วันที่แก้ไขเสร็จงาน': j.resolutionDate,
-      'สถานะ': j.status
+      'สถานะ': j.status,
+      'บรรยายรับแจ้งอาการ': j.symptoms || '',
+      'ขั้นตอนการตรวจสอบ': j.diagnosis || '',
+      'สาเหตุ': j.cause || '',
+      'การแก้ไข': j.actionTaken || '',
+      'หมายเหตุ': j.remarks || ''
     }));
     exportToCSV(data, headers, 'Onsite_Service_Jobs');
   };
@@ -348,6 +357,7 @@ export default function OnsiteServiceTab({
         status: (item['สถานะ'] || item['status'] || 'Open') as any,
         symptoms: item['บรรยายรับแจ้งอาการ'] || '',
         diagnosis: item['ขั้นตอนการตรวจสอบ'] || '',
+        cause: item['สาเหตุ'] || item['cause'] || '',
         actionTaken: item['การแก้ไข'] || '',
         remarks: item['หมายเหตุ'] || '',
         photos: [],
@@ -937,12 +947,22 @@ export default function OnsiteServiceTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ขั้นตอนการตรวจสอบและสาเหตุ</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ขั้นตอนการตรวจสอบ</label>
                     <textarea
                       value={diagnosis}
                       onChange={(e) => setDiagnosis(e.target.value)}
-                      placeholder="ระบุร่องรอยการตรวจสอบ ข้อวิเคราะห์ทางเทคนิค และสาเหตุหลัก..."
-                      rows={3}
+                      placeholder="ระบุร่องรอยการตรวจสอบ ข้อวิเคราะห์ทางเทคนิค..."
+                      rows={2}
+                      className="w-full text-xs px-3 py-2 border border-gray-300 rounded focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">สาเหตุ</label>
+                    <textarea
+                      value={cause}
+                      onChange={(e) => setCause(e.target.value)}
+                      placeholder="ระบุสาเหตุปัญหาขัดข้อง..."
+                      rows={2}
                       className="w-full text-xs px-3 py-2 border border-gray-300 rounded focus:outline-none"
                     />
                   </div>
@@ -1151,7 +1171,7 @@ export default function OnsiteServiceTab({
                     <div className="font-semibold">{exportTargetJob.resolutionDate || '-'}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">คู่ค้าหลัก</div>
+                    <div className="text-gray-400 font-bold uppercase text-[9px]">บริษัทคู่ค้า</div>
                     <div className="font-semibold">{exportTargetJob.partnerCompany || 'ไม่มี'}</div>
                   </div>
                 </div>
@@ -1163,8 +1183,12 @@ export default function OnsiteServiceTab({
                     <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.symptoms || '-'}</p>
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">ขั้นตอนการตรวจสอบและสาเหตุหลัก:</h3>
+                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">ขั้นตอนการตรวจสอบ:</h3>
                     <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.diagnosis || '-'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุ:</h3>
+                    <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.cause || '-'}</p>
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">รายละเอียดการแก้ไขปัญหา:</h3>
@@ -1205,7 +1229,7 @@ export default function OnsiteServiceTab({
                         <div key={pIdx} className="border border-gray-200 p-3 rounded bg-gray-50 text-center space-y-2">
                           <div className="font-bold text-gray-500 text-[10px] uppercase">รูปถ่ายหน้า {pIdx + 2}</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white border border-gray-100 flex items-center justify-center max-h-48">
-                            <img src={p.url} alt={`Preview ${pIdx + 2}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                            <img src={p.url} alt={`Preview ${pIdx + 2}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                           </div>
                           <div className="font-bold text-gray-800 text-[11px] bg-white p-2 rounded shadow-sm">{p.caption || 'ไม่มีคำบรรยายใต้ภาพ'}</div>
                         </div>

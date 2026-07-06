@@ -297,7 +297,7 @@ export default function ProductClaimsTab({
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element, { scale: 2 });
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
@@ -1045,7 +1045,7 @@ export default function ProductClaimsTab({
                         <div className="border border-gray-200 p-2.5 rounded bg-gray-50 text-center">
                           <div className="text-[10px] text-gray-500 font-bold mb-1">สภาพสินค้ารับเคลมครั้งแรก</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white flex items-center justify-center max-h-36">
-                            <img src={printableClaimDoc.receivedPhoto} alt="Received" className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                            <img src={printableClaimDoc.receivedPhoto} alt="Received" className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                           </div>
                         </div>
                       )}
@@ -1053,7 +1053,7 @@ export default function ProductClaimsTab({
                         <div className="border border-gray-200 p-2.5 rounded bg-gray-50 text-center">
                           <div className="text-[10px] text-gray-500 font-bold mb-1">สินค้ารุ่นใหม่ / ซ่อมคืนสินค้าเคลมเรียบร้อย</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white flex items-center justify-center max-h-36">
-                            <img src={printableClaimDoc.returnedPhoto} alt="Returned" className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                            <img src={printableClaimDoc.returnedPhoto} alt="Returned" className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                           </div>
                         </div>
                       )}

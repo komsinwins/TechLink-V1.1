@@ -37,6 +37,7 @@ export interface OnsiteService {
   resolutionDate: string; // YYYY-MM-DD
   symptoms: string;
   diagnosis: string;
+  cause?: string;
   actionTaken: string;
   remarks: string;
   status: 'Open' | 'In Progress' | 'Pending' | 'Resolved';
