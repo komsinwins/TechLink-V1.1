@@ -1,0 +1,145 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Customer contact and company details",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "address": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactDetail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "partnerCompany": { "type": "string" },
+        "salesRep": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["companyName"]
+    },
+    "OnsiteService": {
+      "title": "OnsiteService",
+      "description": "Onsite maintenance and service work orders",
+      "type": "object",
+      "properties": {
+        "jobNo": { "type": "string" },
+        "customerCompany": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactDetail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "partnerCompany": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "serviceLocation": { "type": "string" },
+        "operator1": { "type": "string" },
+        "operator2": { "type": "string" },
+        "salesRep": { "type": "string" },
+        "receivedDate": { "type": "string" },
+        "startServiceDate": { "type": "string" },
+        "resolutionDate": { "type": "string" },
+        "symptoms": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "actionTaken": { "type": "string" },
+        "remarks": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Pending", "Resolved"] },
+        "productType": { "type": "string" },
+        "photos": { "type": "array" },
+        "signedReportUrl": { "type": "string" },
+        "signedReportName": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["jobNo", "customerCompany"]
+    },
+    "OnCallService": {
+      "title": "OnCallService",
+      "description": "Oncall remote support and call service records",
+      "type": "object",
+      "properties": {
+        "customerCompany": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactDetail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "partnerCompany": { "type": "string" },
+        "productType": { "type": "string" },
+        "salesRep": { "type": "string" },
+        "receivedDate": { "type": "string" },
+        "resolutionDate": { "type": "string" },
+        "reportedCategory": { "type": "string" },
+        "operator": { "type": "string" },
+        "symptoms": { "type": "string" },
+        "actionTaken": { "type": "string" },
+        "remarks": { "type": "string" },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Pending", "Resolved"] },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["customerCompany"]
+    },
+    "ProductClaim": {
+      "title": "ProductClaim",
+      "description": "Product return and warranty claiming process records",
+      "type": "object",
+      "properties": {
+        "customerCompany": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "contactName": { "type": "string" },
+        "contactDetail": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "partnerCompany": { "type": "string" },
+        "productType": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "serialNumber": { "type": "string" },
+        "purchaseDate": { "type": "string" },
+        "warrantyDuration": { "type": "integer" },
+        "claimDestination": { "type": "string" },
+        "claimBuilding": { "type": "string" },
+        "claimReceivedDate": { "type": "string" },
+        "claimSentDate": { "type": "string" },
+        "inspector": { "type": "string" },
+        "claimStatus": { "type": "string", "enum": ["Claiming", "Replaced", "Repaired", "Returned"] },
+        "receivedPhoto": { "type": "string" },
+        "returnedPhoto": { "type": "string" },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["customerCompany"]
+    },
+    "DropdownOptions": {
+      "title": "DropdownOptions",
+      "description": "Global custom dropdown option settings",
+      "type": "object",
+      "properties": {
+        "serviceTypes": { "type": "array" },
+        "operators": { "type": "array" },
+        "salesReps": { "type": "array" },
+        "productTypes": { "type": "array" },
+        "reportedCategories": { "type": "array" }
+      }
+    }
+  },
+  "firestore": {
+    "customers": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "The customer database collection"
+    },
+    "onsiteJobs": {
+      "schema": { "$ref": "#/entities/OnsiteService" },
+      "description": "Onsite jobs collection"
+    },
+    "oncallJobs": {
+      "schema": { "$ref": "#/entities/OnCallService" },
+      "description": "On-call jobs collection"
+    },
+    "claims": {
+      "schema": { "$ref": "#/entities/ProductClaim" },
+      "description": "Claims collection"
+    },
+    "settings": {
+      "schema": { "$ref": "#/entities/DropdownOptions" },
+      "description": "System settings and customization options"
+    }
+  }
+}
