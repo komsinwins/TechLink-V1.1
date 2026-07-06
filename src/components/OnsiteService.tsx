@@ -105,12 +105,12 @@ export default function OnsiteServiceTab({
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
-    setServiceType(serviceTypes[0] || '');
-    setProductType(productTypes[0] || '');
+    setServiceType('');
+    setProductType('');
     setServiceLocation('');
-    setOperator1(operators[0] || '');
-    setOperator2(operators[1] || '');
-    setSalesRep(salesReps[0] || '');
+    setOperator1('');
+    setOperator2('');
+    setSalesRep('');
     const today = new Date().toISOString().split('T')[0];
     setReceivedDate(today);
     setStartServiceDate(today);

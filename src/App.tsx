@@ -564,6 +564,7 @@ export default function App() {
                 claims={claims}
                 customers={customers}
                 productTypes={dropdownOptions.productTypes}
+                operators={dropdownOptions.operators}
                 onAddClaim={handleAddClaim}
                 onUpdateClaim={handleUpdateClaim}
                 onDeleteClaim={handleDeleteClaim}

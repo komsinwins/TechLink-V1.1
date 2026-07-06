@@ -44,9 +44,6 @@ export default function CustomerDatabase({
   const [partnerCompany, setPartnerCompany] = useState('');
   const [salesRep, setSalesRep] = useState('');
 
-  // New Sales rep input inside form
-  const [newSalesRepInput, setNewSalesRepInput] = useState('');
-
   // Selected customer for history view modal
   const [selectedCustomerHistory, setSelectedCustomerHistory] = useState<Customer | null>(null);
 
@@ -58,7 +55,7 @@ export default function CustomerDatabase({
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
-    setSalesRep(salesRepOptions[0] || '');
+    setSalesRep('');
     setEditingId(null);
     setIsFormOpen(false);
   };
@@ -151,14 +148,6 @@ export default function CustomerDatabase({
       'พนักงานขาย': c.salesRep
     }));
     exportToCSV(data, headers, 'Customer_Database');
-  };
-
-  const handleAddSalesRepOption = () => {
-    if (newSalesRepInput.trim()) {
-      onAddSalesRep(newSalesRepInput.trim());
-      setSalesRep(newSalesRepInput.trim());
-      setNewSalesRepInput('');
-    }
   };
 
   const filteredCustomers = customers.filter(c => {
@@ -426,50 +415,16 @@ export default function CustomerDatabase({
                 {/* Sales Representative Option Creator */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">ชื่อพนักงานขาย</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={salesRep}
-                      onChange={(e) => setSalesRep(e.target.value)}
-                      className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-800"
-                    >
-                      <option value="">-- เลือกพนักงานขาย --</option>
-                      {salesRepOptions.map(rep => (
-                        <option key={rep} value={rep}>{rep}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {/* Quick add sales rep options inside modal */}
-                  <div className="mt-2 flex gap-1 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                    <input
-                      type="text"
-                      placeholder="เพิ่มชื่อเซลส์ใหม่"
-                      value={newSalesRepInput}
-                      onChange={(e) => setNewSalesRepInput(e.target.value)}
-                      className="w-full text-[10px] px-2 py-1 border border-gray-200 rounded"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddSalesRepOption}
-                      className="bg-blue-600 text-white font-bold text-[10px] px-2.5 py-1 rounded hover:bg-blue-700 transition-colors shrink-0"
-                    >
-                      เพิ่ม
-                    </button>
-                    {salesRep && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`ลบชื่อ "${salesRep}" ออกจากรายชื่อเลือกทั่วไป?`)) {
-                            onDeleteSalesRep(salesRep);
-                            setSalesRep('');
-                          }
-                        }}
-                        className="text-red-500 font-bold text-[10px] hover:text-red-700 p-1"
-                        title="ลบตัวเลือกนี้"
-                      >
-                        ลบออก
-                      </button>
-                    )}
-                  </div>
+                  <select
+                    value={salesRep}
+                    onChange={(e) => setSalesRep(e.target.value)}
+                    className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-gray-800"
+                  >
+                    <option value="">-- เลือกพนักงานขาย --</option>
+                    {salesRepOptions.map(rep => (
+                      <option key={rep} value={rep}>{rep}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

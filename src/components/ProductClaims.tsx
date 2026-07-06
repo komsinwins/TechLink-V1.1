@@ -13,6 +13,7 @@ interface ProductClaimsProps {
   claims: ProductClaim[];
   customers: Customer[];
   productTypes: string[];
+  operators: string[];
   onAddClaim: (claim: ProductClaim) => Promise<any>;
   onUpdateClaim: (id: string, claim: ProductClaim) => Promise<any>;
   onDeleteClaim: (id: string) => Promise<any>;
@@ -27,6 +28,7 @@ export default function ProductClaimsTab({
   claims,
   customers,
   productTypes,
+  operators,
   onAddClaim,
   onUpdateClaim,
   onDeleteClaim,
@@ -92,7 +94,7 @@ export default function ProductClaimsTab({
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
-    setProductType(productTypes[0] || '');
+    setProductType('');
     setBrand('');
     setModel('');
     setSerialNumber('');
@@ -797,15 +799,18 @@ export default function ProductClaimsTab({
                       className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อผู้ตรวจสอบ</label>
-                    <input
-                      type="text"
+                   <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อผู้ตรวจสอบ (ช่างเทคนิค)</label>
+                    <select
                       value={inspector}
                       onChange={(e) => setInspector(e.target.value)}
-                      placeholder="ผู้ทำรายงานตรวจสอบเคลม"
-                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
-                    />
+                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-800"
+                    >
+                      <option value="">-- เลือกช่างผู้ตรวจสอบ --</option>
+                      {operators.map(op => (
+                        <option key={op} value={op}>{op}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">สถานะสินค้าเคลม</label>

@@ -71,13 +71,13 @@ export default function OnCallServiceTab({
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
-    setProductType(productTypes[0] || '');
-    setSalesRep(salesReps[0] || '');
+    setProductType('');
+    setSalesRep('');
     const today = new Date().toISOString().split('T')[0];
     setReceivedDate(today);
     setResolutionDate(today);
-    setReportedCategory(reportedCategories[0] || '');
-    setOperator(operators[0] || '');
+    setReportedCategory('');
+    setOperator('');
     setSymptoms('');
     setActionTaken('');
     setRemarks('');
