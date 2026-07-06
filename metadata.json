@@ -1,0 +1,6 @@
+{
+  "name": "TechLink V1.1",
+  "description": "Technical Support Department Tracking & Management System for Onsite Service, OnCall Service, Product Claims, and Customer Database with Firebase Integration",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

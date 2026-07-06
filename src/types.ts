@@ -1,0 +1,105 @@
+export interface Customer {
+  id?: string;
+  companyName: string;
+  address: string;
+  contactName: string;
+  contactDetail: string;
+  contactPhone: string;
+  contactEmail: string;
+  partnerCompany: string;
+  salesRep: string;
+  createdAt?: number;
+}
+
+export interface ServicePhoto {
+  url: string; // Base64 format
+  caption: string;
+  timestamp: number; // For the 30-day auto-deletion logic
+}
+
+export interface OnsiteService {
+  id?: string;
+  jobNo: string; // e.g. WSS_Service001/26
+  customerCompany: string;
+  customerAddress: string;
+  contactName: string;
+  contactDetail: string;
+  contactPhone: string;
+  contactEmail: string;
+  partnerCompany: string;
+  serviceType: string;
+  serviceLocation: string;
+  operator1: string;
+  operator2: string;
+  salesRep: string;
+  receivedDate: string; // YYYY-MM-DD
+  startServiceDate: string; // YYYY-MM-DD
+  resolutionDate: string; // YYYY-MM-DD
+  symptoms: string;
+  diagnosis: string;
+  actionTaken: string;
+  remarks: string;
+  status: 'Open' | 'In Progress' | 'Pending' | 'Resolved';
+  productType?: string; // Product type added in work assignment
+  photos: ServicePhoto[]; // Max 4 photos
+  signedReportUrl: string; // Base64 file string for customer-signed PDF/report
+  signedReportName: string; // Name of the uploaded file
+  createdAt?: number;
+}
+
+export interface OnCallService {
+  id?: string;
+  customerCompany: string;
+  contactName: string;
+  contactDetail: string;
+  contactPhone: string;
+  contactEmail: string;
+  partnerCompany: string;
+  productType: string; // Service product type (customizable dropdown)
+  salesRep: string;
+  receivedDate: string; // YYYY-MM-DD
+  resolutionDate: string; // YYYY-MM-DD
+  reportedCategory: string; // Reported product category
+  operator: string;
+  symptoms: string;
+  actionTaken: string;
+  remarks: string;
+  status: 'Open' | 'In Progress' | 'Pending' | 'Resolved';
+  createdAt?: number;
+}
+
+export interface ProductClaim {
+  id?: string;
+  customerCompany: string;
+  customerAddress: string;
+  contactName: string;
+  contactDetail: string;
+  contactPhone: string;
+  contactEmail: string;
+  partnerCompany: string;
+  productType: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  purchaseDate: string; // YYYY-MM-DD
+  warrantyDuration: number; // In months
+  claimDestination: string;
+  claimBuilding: string;
+  claimReceivedDate: string; // YYYY-MM-DD
+  claimSentDate: string; // YYYY-MM-DD
+  inspector: string;
+  claimStatus: 'Claiming' | 'Replaced' | 'Repaired' | 'Returned';
+  receivedPhoto: string; // Base64
+  returnedPhoto: string; // Base64
+  remarks: string;
+  createdAt?: number;
+}
+
+export interface DropdownOptions {
+  id?: string;
+  serviceTypes: string[];
+  operators: string[];
+  salesReps: string[];
+  productTypes: string[];
+  reportedCategories: string[];
+}
