@@ -8,6 +8,7 @@ import {
 import { calculateDaysDiff, calculateRemainingWarranty, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
 import { uploadFileToDrive } from '../drive';
 import { getAccessToken } from '../firebase';
+import { exportDataToGoogleSheets } from '../sheets';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -253,6 +254,50 @@ export default function ProductClaimsTab({
     }
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportSheets = async () => {
+    setIsExporting(true);
+    try {
+      const headers = [
+        'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
+        'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 
+        'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'สถานที่ส่งเคลม', 'อาคารที่แจ้งเคลม', 
+        'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ตรวจสอบ', 'สถานะสินค้าเคลม', 'หมายเหตุ'
+      ];
+      const dataRows = claims.map(c => [
+        c.customerCompany,
+        c.customerAddress,
+        c.contactName,
+        c.contactDetail,
+        c.contactPhone,
+        c.contactEmail,
+        c.partnerCompany,
+        c.productType,
+        c.brand,
+        c.model,
+        c.serialNumber,
+        c.purchaseDate,
+        c.warrantyDuration,
+        c.claimDestination,
+        c.claimBuilding,
+        c.claimReceivedDate,
+        c.claimSentDate,
+        c.inspector,
+        c.claimStatus,
+        c.remarks
+      ]);
+      const url = await exportDataToGoogleSheets('TechLink_Product_Claims_Records', headers, dataRows);
+      alert(`ส่งออกข้อมูลสำเร็จ! เปิดดูได้ที่:\n${url}`);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการส่งออกไปยัง Google Sheets: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = [
       'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
@@ -402,6 +447,16 @@ export default function ProductClaimsTab({
           >
             <Download className="w-3.5 h-3.5 text-blue-600" />
             ส่งออก CSV
+          </button>
+
+          {/* Sheets Export */}
+          <button 
+            onClick={handleExportSheets}
+            disabled={isExporting}
+            className="flex items-center gap-1 px-2 py-1.5 bg-white border border-green-600 text-green-700 rounded text-[11px] font-bold hover:bg-green-50 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Sheets'}
           </button>
 
           <button

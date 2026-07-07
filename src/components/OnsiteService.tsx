@@ -7,6 +7,7 @@ import {
 import { calculateDaysDiff, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
 import { uploadFileToDrive } from '../drive';
 import { getAccessToken } from '../firebase';
+import { exportDataToGoogleSheets } from '../sheets';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -198,7 +199,7 @@ export default function OnsiteServiceTab({
     setIsUploading(true);
     try {
       const uploadedPhotos: ServicePhoto[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of Array.from(files) as File[]) {
         // Upload directly to Drive
         const result = await uploadFileToDrive(file, file.name, 'TechLink_PIC', token);
         uploadedPhotos.push({
@@ -321,6 +322,52 @@ export default function OnsiteServiceTab({
   };
 
   // CSV Import / Export
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportSheets = async () => {
+    setIsExporting(true);
+    try {
+      const headers = [
+        'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
+        'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
+        'ผู้ปฏิบัติงาน 1', 'ผู้ปฏิบัติงาน 2', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่เข้าปฏิบัติงาน', 
+        'วันที่แก้ไขเสร็จงาน', 'สถานะ', 'บรรยายรับแจ้งอาการ', 'ขั้นตอนการตรวจสอบ', 'สาเหตุ', 'การแก้ไข', 'หมายเหตุ'
+      ];
+      const dataRows = onsiteJobs.map(j => [
+        j.jobNo,
+        j.customerCompany,
+        j.customerAddress,
+        j.contactName,
+        j.contactDetail,
+        j.contactPhone,
+        j.contactEmail,
+        j.partnerCompany,
+        j.serviceType,
+        j.serviceLocation,
+        j.operator1,
+        j.operator2,
+        j.salesRep,
+        j.receivedDate,
+        j.startServiceDate,
+        j.resolutionDate,
+        j.status,
+        j.symptoms || '',
+        j.diagnosis || '',
+        j.cause || '',
+        j.actionTaken || '',
+        j.remarks || ''
+      ]);
+      const url = await exportDataToGoogleSheets('TechLink_Onsite_Service_Jobs', headers, dataRows);
+      alert(`ส่งออกข้อมูลสำเร็จ! เปิดดูได้ที่:\n${url}`);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการส่งออกไปยัง Google Sheets: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = [
       'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
@@ -478,6 +525,16 @@ export default function OnsiteServiceTab({
           >
             <Download className="w-3.5 h-3.5 text-blue-600" />
             ส่งออก CSV
+          </button>
+
+          {/* Sheets Export */}
+          <button 
+            onClick={handleExportSheets}
+            disabled={isExporting}
+            className="flex items-center gap-1 px-2 py-1.5 bg-white border border-green-600 text-green-700 rounded text-[11px] font-bold hover:bg-green-50 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Sheets'}
           </button>
 
           <button

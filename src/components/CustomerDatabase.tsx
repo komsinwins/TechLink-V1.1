@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Customer, OnsiteService, OnCallService, ProductClaim } from '../types';
 import { Search, Plus, Trash2, Edit3, ArrowUpRight, FileSpreadsheet, Download, Upload, Eye, History, Briefcase, Phone, Mail, MapPin, Users } from 'lucide-react';
 import { exportToCSV, parseCSV } from '../utils';
+import { exportDataToGoogleSheets } from '../sheets';
 
 interface CustomerDatabaseProps {
   customers: Customer[];
@@ -145,6 +146,33 @@ export default function CustomerDatabase({
     e.target.value = ''; // clear input
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportSheets = async () => {
+    setIsExporting(true);
+    try {
+      const headers = ['ชื่อบริษัท', 'ที่อยู่บริษัท', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'พนักงานขาย'];
+      const dataRows = customers.map(c => [
+        c.companyName,
+        c.address,
+        c.contactName,
+        c.contactDetail,
+        c.contactPhone,
+        c.contactEmail,
+        c.partnerCompany,
+        c.salesRep
+      ]);
+      const url = await exportDataToGoogleSheets('TechLink_Customer_Database', headers, dataRows);
+      alert(`ส่งออกข้อมูลสำเร็จ! เปิดดูได้ที่:\n${url}`);
+      window.open(url, '_blank');
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการส่งออกไปยัง Google Sheets: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = () => {
     const headers = ['ชื่อบริษัท', 'ที่อยู่บริษัท', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'พนักงานขาย'];
     const data = customers.map(c => ({
@@ -198,6 +226,16 @@ export default function CustomerDatabase({
           >
             <Download className="w-3.5 h-3.5 text-blue-600" />
             ส่งออก CSV
+          </button>
+
+          {/* Sheets Export */}
+          <button 
+            onClick={handleExportSheets}
+            disabled={isExporting}
+            className="flex items-center gap-1 px-2 py-1.5 bg-white border border-green-600 text-green-700 rounded text-[11px] font-bold hover:bg-green-50 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Sheets'}
           </button>
 
           <button
