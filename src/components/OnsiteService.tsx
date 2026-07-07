@@ -47,6 +47,7 @@ export default function OnsiteServiceTab({
   
   // PDF export modal view
   const [exportTargetJob, setExportTargetJob] = useState<OnsiteService | null>(null);
+  const [reportViewMode, setReportViewMode] = useState<'full' | 'simple'>('full');
 
   // Search customer query for auto-fill
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -400,7 +401,8 @@ export default function OnsiteServiceTab({
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      pdf.save(`JobService_${exportTargetJob?.jobNo?.replace('/', '_')}.pdf`);
+      const prefix = reportViewMode === 'simple' ? 'CustomerSummary' : 'JobService';
+      pdf.save(`${prefix}_${exportTargetJob?.jobNo?.replace('/', '_')}.pdf`);
     } catch (err) {
       console.error(err);
       alert('เกิดข้อผิดพลาดในการสร้าง PDF');
@@ -1112,8 +1114,24 @@ export default function OnsiteServiceTab({
       {exportTargetJob && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col my-8 max-h-[90vh]">
-            <div className="bg-blue-700 text-white p-4 font-bold flex justify-between items-center shrink-0">
-              <span className="text-sm">พิมพ์ / ส่งออกเอกสารใบงานปฏิบัติการบริการ (Job Service)</span>
+            <div className="bg-blue-700 text-white p-4 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+              <span className="text-sm">พิมพ์ / ส่งออกเอกสารใบงาน (Job Service)</span>
+              <div className="flex bg-blue-800/80 p-0.5 rounded-lg border border-blue-600 text-xs shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setReportViewMode('full')}
+                  className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${reportViewMode === 'full' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white'}`}
+                >
+                  ใบงานฉบับเต็ม (Full Job)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReportViewMode('simple')}
+                  className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${reportViewMode === 'simple' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white'}`}
+                >
+                  รายงานสรุปลูกค้า (Customer Summary)
+                </button>
+              </div>
               <button onClick={() => setExportTargetJob(null)} className="text-white hover:text-white/80 text-xl font-bold">&times;</button>
             </div>
 
@@ -1126,95 +1144,182 @@ export default function OnsiteServiceTab({
                 className="bg-white p-8 shadow-sm border border-gray-200 max-w-2xl mx-auto text-xs text-gray-800 leading-relaxed space-y-6 select-text"
                 style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
               >
-                {/* Header layout according to prompt */}
-                <div className="border-b-2 border-blue-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                  <div>
-                    <h1 className="text-lg font-extrabold text-blue-900">ใบงานปฏิบัติการบริการ (Job Service)</h1>
-                    <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุงเครือข่าย</p>
-                    <p className="text-gray-500 text-[10px] mt-1">Email: <span className="font-semibold text-blue-700">wssservice.wins@gmail.com</span> | เบอร์โทรติดต่อ: <span className="font-semibold text-blue-700">085 502 9624</span></p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-gray-500 font-bold">หมายเลขใบงาน</div>
-                    <div className="text-sm font-extrabold text-blue-700 font-mono mt-0.5">{exportTargetJob.jobNo}</div>
-                  </div>
-                </div>
-
-                {/* Grid Customer details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded border border-gray-100">
-                  <div className="space-y-1">
-                    <div className="text-gray-500 font-bold uppercase text-[10px]">ข้อมูลลูกค้า</div>
-                    <div><strong>บริษัท:</strong> {exportTargetJob.customerCompany}</div>
-                    <div><strong>ที่อยู่:</strong> {exportTargetJob.customerAddress || '-'}</div>
-                    <div><strong>สถานที่ทำงาน:</strong> {exportTargetJob.serviceLocation || '-'}</div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-gray-500 font-bold uppercase text-[10px]">ผู้ติดต่อ & บริการ</div>
-                    <div><strong>ผู้ติดต่อ:</strong> {exportTargetJob.contactName} {exportTargetJob.contactDetail ? `(${exportTargetJob.contactDetail})` : ''}</div>
-                    <div><strong>เบอร์โทร:</strong> {exportTargetJob.contactPhone || '-'}</div>
-                    <div><strong>อีเมล:</strong> {exportTargetJob.contactEmail || '-'}</div>
-                    <div><strong>ประเภทบริการ:</strong> {exportTargetJob.serviceType}</div>
-                  </div>
-                </div>
-
-                {/* Operations & Dates (No issue date and no Sales rep as requested) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[11px] border-b border-gray-100 pb-4">
-                  <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่รับแจ้ง</div>
-                    <div className="font-semibold">{exportTargetJob.receivedDate || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่เข้าปฏิบัติงาน</div>
-                    <div className="font-semibold">{exportTargetJob.startServiceDate || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่แก้ไขเสร็จงาน</div>
-                    <div className="font-semibold">{exportTargetJob.resolutionDate || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">บริษัทคู่ค้า</div>
-                    <div className="font-semibold">{exportTargetJob.partnerCompany || 'ไม่มี'}</div>
-                  </div>
-                </div>
-
-                {/* Diagnostic descriptions */}
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">บรรยายอาการรับแจ้ง:</h3>
-                    <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.symptoms || '-'}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">ขั้นตอนการตรวจสอบ:</h3>
-                    <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.diagnosis || '-'}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุ:</h3>
-                    <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.cause || '-'}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">รายละเอียดการแก้ไขปัญหา:</h3>
-                    <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.actionTaken || '-'}</p>
-                  </div>
-                  {exportTargetJob.remarks && (
-                    <div>
-                      <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">หมายเหตุเพิ่มเติม:</h3>
-                      <p className="mt-1 text-gray-600 whitespace-pre-wrap pl-1">{exportTargetJob.remarks}</p>
+                {reportViewMode === 'full' ? (
+                  <>
+                    {/* Header layout according to prompt */}
+                    <div className="border-b-2 border-blue-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                      <div>
+                        <h1 className="text-lg font-extrabold text-blue-900">ใบงาน (Job Service)</h1>
+                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุงเครือข่าย</p>
+                        <p className="text-gray-500 text-[10px] mt-1">Email: <span className="font-semibold text-blue-700">wssservice.wins@gmail.com</span> | เบอร์โทรติดต่อ: <span className="font-semibold text-blue-700">085 502 9624</span></p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gray-500 font-bold">หมายเลขใบงาน</div>
+                        <div className="text-sm font-extrabold text-blue-700 font-mono mt-0.5">{exportTargetJob.jobNo}</div>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* SIGNATURE SECTION AS REQUESTED */}
-                <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
-                  <div className="space-y-12">
-                    <div className="text-gray-500 font-bold">ผู้ตรวจสอบรายงาน (Inspector)</div>
-                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                    <div className="text-gray-600">(........................................................)</div>
-                  </div>
-                  <div className="space-y-12">
-                    <div className="text-gray-500 font-bold">ผู้รับมอบงาน / ตัวแทนลูกค้า (Customer)</div>
-                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                    <div className="text-gray-600">(........................................................)</div>
-                  </div>
-                </div>
+                    {/* Grid Customer details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded border border-gray-100">
+                      <div className="space-y-1">
+                        <div className="text-gray-500 font-bold uppercase text-[10px]">ข้อมูลลูกค้า</div>
+                        <div><strong>บริษัท:</strong> {exportTargetJob.customerCompany}</div>
+                        <div><strong>ที่อยู่:</strong> {exportTargetJob.customerAddress || '-'}</div>
+                        <div><strong>สถานที่ทำงาน:</strong> {exportTargetJob.serviceLocation || '-'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-gray-500 font-bold uppercase text-[10px]">ผู้ติดต่อ & บริการ</div>
+                        <div><strong>ผู้ติดต่อ:</strong> {exportTargetJob.contactName} {exportTargetJob.contactDetail ? `(${exportTargetJob.contactDetail})` : ''}</div>
+                        <div><strong>เบอร์โทร:</strong> {exportTargetJob.contactPhone || '-'}</div>
+                        <div><strong>อีเมล:</strong> {exportTargetJob.contactEmail || '-'}</div>
+                        <div><strong>ประเภทบริการ:</strong> {exportTargetJob.serviceType}</div>
+                      </div>
+                    </div>
+
+                    {/* Operations & Dates (No issue date and no Sales rep as requested) */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[11px] border-b border-gray-100 pb-4">
+                      <div>
+                        <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่รับแจ้ง</div>
+                        <div className="font-semibold">{exportTargetJob.receivedDate || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่เข้าปฏิบัติงาน</div>
+                        <div className="font-semibold">{exportTargetJob.startServiceDate || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่แก้ไขเสร็จงาน</div>
+                        <div className="font-semibold">{exportTargetJob.resolutionDate || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 font-bold uppercase text-[9px]">บริษัทคู่ค้า</div>
+                        <div className="font-semibold">{exportTargetJob.partnerCompany || 'ไม่มี'}</div>
+                      </div>
+                    </div>
+
+                    {/* Diagnostic descriptions */}
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">บรรยายอาการรับแจ้ง:</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.symptoms || '-'}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">ขั้นตอนการตรวจสอบ:</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.diagnosis || '-'}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุ:</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.cause || '-'}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">รายละเอียดการแก้ไขปัญหา:</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.actionTaken || '-'}</p>
+                      </div>
+                      {exportTargetJob.remarks && (
+                        <div>
+                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">หมายเหตุเพิ่มเติม:</h3>
+                          <p className="mt-1 text-gray-600 whitespace-pre-wrap pl-1">{exportTargetJob.remarks}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* SIGNATURE SECTION AS REQUESTED */}
+                    <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
+                      <div className="space-y-12">
+                        <div className="text-gray-500 font-bold">ผู้ตรวจสอบรายงาน (Inspector)</div>
+                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                        <div className="text-gray-600">(........................................................)</div>
+                      </div>
+                      <div className="space-y-12">
+                        <div className="text-gray-500 font-bold">ผู้รับมอบงาน / ตัวแทนลูกค้า (Customer)</div>
+                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                        <div className="text-gray-600">(........................................................)</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Simple summary view for customer reporting */}
+                    <div className="border-b-2 border-emerald-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                      <div>
+                        <h1 className="text-lg font-extrabold text-emerald-950">รายงานสรุปผลการทำงาน (Job Summary Report)</h1>
+                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนและบริการด้านเทคนิค</p>
+                        <p className="text-gray-500 text-[10px] mt-1">Email: <span className="font-semibold text-emerald-700">wssservice.wins@gmail.com</span> | เบอร์โทรติดต่อ: <span className="font-semibold text-emerald-700">085 502 9624</span></p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gray-500 font-bold text-[10px] uppercase">หมายเลขเอกสาร / Document No</div>
+                        <div className="text-sm font-extrabold text-emerald-700 font-mono mt-0.5">{exportTargetJob.jobNo}</div>
+                      </div>
+                    </div>
+
+                    {/* Grid Customer details for Simple Summary */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-emerald-50/20 p-4 rounded border border-emerald-100">
+                      <div className="space-y-1">
+                        <div className="text-emerald-800 font-extrabold uppercase text-[10px]">ข้อมูลลูกค้า (Customer Information)</div>
+                        <div><strong>บริษัท / บริษัทลูกค้า:</strong> {exportTargetJob.customerCompany}</div>
+                        <div><strong>ที่อยู่ / สถานที่ดำเนินงาน:</strong> {exportTargetJob.serviceLocation || exportTargetJob.customerAddress || '-'}</div>
+                        <div><strong>ผู้ติดต่อลูกค้า:</strong> {exportTargetJob.contactName} {exportTargetJob.contactPhone ? `(${exportTargetJob.contactPhone})` : ''}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-emerald-800 font-extrabold uppercase text-[10px]">รายละเอียดการให้บริการ (Service Summary)</div>
+                        <div><strong>ประเภทการบริการ:</strong> {exportTargetJob.serviceType}</div>
+                        <div><strong>วันที่เข้าปฏิบัติงาน:</strong> {exportTargetJob.startServiceDate || '-'}</div>
+                        <div><strong>ผู้ปฏิบัติงานหลัก:</strong> {[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}</div>
+                      </div>
+                    </div>
+
+                    {/* Status panel */}
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 rounded border border-emerald-100/70">
+                      <div className="text-[11px] font-bold text-emerald-900">สถานะการให้บริการแก่ลูกค้า (Service Status)</div>
+                      <div className="font-extrabold text-xs text-emerald-800 bg-white px-3 py-1 rounded shadow-xs border border-emerald-200">
+                        {exportTargetJob.status === 'Resolved' ? 'Resolved (เสร็จสิ้นการบริการเรียบร้อย)' :
+                         exportTargetJob.status === 'In Progress' ? 'In Progress (กำลังดำเนินการแก้ไข)' :
+                         exportTargetJob.status === 'Pending' ? 'Pending (รออะไหล่/อุปกรณ์เพิ่มเติม)' :
+                         'Open (กำลังตรวจสอบปัญหา)'}
+                      </div>
+                    </div>
+
+                    {/* Descriptive sections for Customer report */}
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">อาการที่ได้รับแจ้ง / ปัญหาที่พบบนระบบ (Reported Symptoms / Issues):</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.symptoms || '-'}</p>
+                      </div>
+
+                      {exportTargetJob.cause && (
+                        <div>
+                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุหลักของปัญหา (Root Cause of Issue):</h3>
+                          <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.cause}</p>
+                        </div>
+                      )}
+
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-emerald-100 pb-1 text-[11px] text-emerald-950">รายละเอียดการดำเนินงาน / การแก้ไขปัญหา (Action Taken / Resolution):</h3>
+                        <p className="mt-1.5 text-gray-700 whitespace-pre-wrap pl-2 pr-1 font-medium bg-emerald-50/10 py-2.5 rounded border border-emerald-100/30">{exportTargetJob.actionTaken || '-'}</p>
+                      </div>
+
+                      {exportTargetJob.remarks && (
+                        <div>
+                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">หมายเหตุเพิ่มเติม (Remarks / Recommendations):</h3>
+                          <p className="mt-1 text-gray-600 whitespace-pre-wrap pl-1">{exportTargetJob.remarks}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Signature pads for customer report */}
+                    <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
+                      <div className="space-y-12">
+                        <div className="text-gray-500 font-bold text-[11px]">ผู้ปฏิบัติหน้าที่รายงาน (Service Engineer Signature)</div>
+                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                        <div className="text-gray-600 text-[10px]">(........................................................)</div>
+                      </div>
+                      <div className="space-y-12">
+                        <div className="text-gray-500 font-bold text-[11px]">ผู้ส่งมอบ / ตัวแทนลูกค้าเซ็นรับทราบ (Customer Acknowledgement)</div>
+                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                        <div className="text-gray-600 text-[10px]">(........................................................)</div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Photo Pages (Pages 2, 3, 4 sequentially as requested) */}
                 {exportTargetJob.photos && exportTargetJob.photos.length > 0 && (
