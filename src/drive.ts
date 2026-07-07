@@ -1,0 +1,105 @@
+import { getAccessToken } from './firebase';
+
+const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3/files';
+const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+export async function getOrCreateFolder(folderName: string, accessToken: string): Promise<string> {
+  // Search for the folder
+  const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`);
+  const searchRes = await fetch(`${DRIVE_API_URL}?q=${query}&fields=files(id, name)`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!searchRes.ok) {
+    throw new Error(`Failed to search for folder: ${searchRes.statusText}`);
+  }
+
+  const data = await searchRes.json();
+  if (data.files && data.files.length > 0) {
+    return data.files[0].id; // Return existing folder ID
+  }
+
+  // Create folder if not found
+  const createRes = await fetch(DRIVE_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+    }),
+  });
+
+  if (!createRes.ok) {
+    throw new Error(`Failed to create folder: ${createRes.statusText}`);
+  }
+
+  const createData = await createRes.json();
+  return createData.id;
+}
+
+export async function uploadFileToDrive(
+  file: File | Blob,
+  fileName: string,
+  folderName: string,
+  accessToken: string
+): Promise<{ fileId: string; webViewLink: string }> {
+  const folderId = await getOrCreateFolder(folderName, accessToken);
+
+  const metadata = {
+    name: fileName,
+    parents: [folderId],
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+
+  const uploadRes = await fetch(DRIVE_UPLOAD_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: form,
+  });
+
+  if (!uploadRes.ok) {
+    throw new Error(`Failed to upload file: ${uploadRes.statusText}`);
+  }
+
+  const uploadData = await uploadRes.json();
+  
+  // Get the webViewLink
+  const getRes = await fetch(`${DRIVE_API_URL}/${uploadData.id}?fields=id,webViewLink`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!getRes.ok) {
+    return { fileId: uploadData.id, webViewLink: '' };
+  }
+
+  const getData = await getRes.json();
+  return { fileId: getData.id, webViewLink: getData.webViewLink };
+}
+
+// Convert base64 data URL to Blob
+export function dataURLtoBlob(dataurl: string): Blob {
+  const arr = dataurl.split(',');
+  const mimeMatch = arr[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : '';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}

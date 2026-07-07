@@ -6,6 +6,8 @@ import {
   Check, X
 } from 'lucide-react';
 import { calculateDaysDiff, calculateRemainingWarranty, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
+import { uploadFileToDrive } from '../drive';
+import { getAccessToken } from '../firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -41,6 +43,7 @@ export default function ProductClaimsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Claim printable document view modal
   const [printableClaimDoc, setPrintableClaimDoc] = useState<ProductClaim | null>(null);
@@ -153,21 +156,53 @@ export default function ProductClaimsTab({
     setCustomerSearchQuery('');
   };
 
-  const handlePhotoUpload = (ref: 'received' | 'returned', e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (ref: 'received' | 'returned', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const base64Str = evt.target?.result as string;
+    const token = await getAccessToken();
+    if (!token) {
+      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลดรูปภาพไปยัง Google Drive');
+      return;
+    }
+
+    // Determine Claim No to use as file name
+    const resolvedClaimNo = editingId ? (claims.find(c => c.id === editingId)?.claimNo || generateClaimNo()) : generateClaimNo();
+    const fileName = `${resolvedClaimNo}_${ref === 'received' ? 'Received' : 'Returned'}_${file.name}`;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadFileToDrive(file, fileName, 'TechLink_Claim Product', token);
+      const url = result.webViewLink || result.fileId;
       if (ref === 'received') {
-        setReceivedPhoto(base64Str);
+        setReceivedPhoto(url);
       } else {
-        setReturnedPhoto(base64Str);
+        setReturnedPhoto(url);
       }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const generateClaimNo = (): string => {
+    const currentYear = new Date().getFullYear();
+    const shortYear = String(currentYear).substring(2);
+    const sameYearClaims = claims.filter(c => {
+      const parts = c.claimNo?.split('/');
+      if (parts && parts.length > 1) {
+        return parts[1] === String(currentYear) || parts[1] === shortYear;
+      }
+      return false;
+    });
+
+    const nextSeq = sameYearClaims.length + 1;
+    const formattedSeq = String(nextSeq).padStart(3, '0');
+    // ClaimNo style: WSS_Product claim001/26
+    return `WSS_Product claim${formattedSeq}/${shortYear}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,7 +212,10 @@ export default function ProductClaimsTab({
       return;
     }
 
+    const resolvedClaimNo = editingId ? (claims.find(c => c.id === editingId)?.claimNo || generateClaimNo()) : generateClaimNo();
+
     const payload: ProductClaim = {
+      claimNo: resolvedClaimNo,
       customerCompany,
       customerAddress,
       contactName,
@@ -443,6 +481,7 @@ export default function ProductClaimsTab({
                           {isClaimOverdue && <AlertCircle className="w-3.5 h-3.5 text-purple-500 shrink-0" title="สินค้าเคลมค้างส่งเกิน 30 วัน!" />}
                           <div className="font-bold text-slate-900">{claim.customerCompany}</div>
                         </div>
+                        {claim.claimNo && <div className="text-[10px] text-blue-600 font-bold mt-0.2">{claim.claimNo}</div>}
                         <div className="text-[10px] text-slate-550 mt-0.2">{claim.contactName} ({claim.contactPhone})</div>
                       </td>
 
@@ -935,9 +974,10 @@ export default function ProductClaimsTab({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 cursor-pointer"
+                  disabled={isUploading}
+                  className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  บันทึกข้อมูล
+                  {isUploading ? 'กำลังอัปโหลด...' : 'บันทึกข้อมูล'}
                 </button>
               </div>
             </form>

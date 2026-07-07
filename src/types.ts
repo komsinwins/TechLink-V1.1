@@ -80,6 +80,7 @@ export interface OnCallService {
 
 export interface ProductClaim {
   id?: string;
+  claimNo?: string;
   customerCompany: string;
   customerAddress: string;
   contactName: string;

@@ -5,6 +5,8 @@ import {
   Calendar, Check, User, Info, FileSpreadsheet, Paperclip, CheckSquare, Image as ImageIcon, X
 } from 'lucide-react';
 import { calculateDaysDiff, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
+import { uploadFileToDrive } from '../drive';
+import { getAccessToken } from '../firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -86,7 +88,7 @@ export default function OnsiteServiceTab({
   const [newOperator, setNewOperator] = useState('');
   const [newSalesRep, setNewSalesRep] = useState('');
 
-
+  const [isUploading, setIsUploading] = useState(false);
 
   // Refs for files
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -178,7 +180,7 @@ export default function OnsiteServiceTab({
     setCustomerSearchQuery('');
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -187,21 +189,32 @@ export default function OnsiteServiceTab({
       return;
     }
 
-    Array.from(files).forEach((file: any) => {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64Str = evt.target?.result as string;
-        const newPhoto: ServicePhoto = {
-          url: base64Str,
+    const token = await getAccessToken();
+    if (!token) {
+      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลดรูปภาพไปยัง Google Drive');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const uploadedPhotos: ServicePhoto[] = [];
+      for (const file of Array.from(files)) {
+        // Upload directly to Drive
+        const result = await uploadFileToDrive(file, file.name, 'TechLink_PIC', token);
+        uploadedPhotos.push({
+          url: result.webViewLink || result.fileId, // Use webViewLink if possible
           caption: '',
           timestamp: Date.now()
-        };
-        setPhotos(prev => [...prev, newPhoto]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (photoInputRef.current) photoInputRef.current.value = '';
+        });
+      }
+      setPhotos(prev => [...prev, ...uploadedPhotos]);
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
   };
 
   const handleCaptionChange = (index: number, val: string) => {
@@ -214,19 +227,28 @@ export default function OnsiteServiceTab({
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  const handleReportUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const base64Str = evt.target?.result as string;
-      setSignedReportUrl(base64Str);
-      setSignedReportName(file.name);
-    };
-    reader.readAsDataURL(file);
+    const token = await getAccessToken();
+    if (!token) {
+      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลด PDF ไปยัง Google Drive');
+      return;
+    }
 
-    if (reportInputRef.current) reportInputRef.current.value = '';
+    setIsUploading(true);
+    try {
+      const result = await uploadFileToDrive(file, file.name, 'TechLink_PDF', token);
+      setSignedReportUrl(result.webViewLink || result.fileId);
+      setSignedReportName(file.name);
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดเอกสาร: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      if (reportInputRef.current) reportInputRef.current.value = '';
+    }
   };
 
   const generateJobNo = (): string => {
@@ -1104,9 +1126,10 @@ export default function OnsiteServiceTab({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition-colors shadow-xs cursor-pointer"
+                  disabled={isUploading}
+                  className="px-4 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  บันทึกข้อมูล
+                  {isUploading ? 'กำลังอัปโหลด...' : 'บันทึกข้อมูล'}
                 </button>
               </div>
             </form>
