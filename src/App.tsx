@@ -47,6 +47,7 @@ export default function App() {
   // Selected details passing for navigation triggers
   const [selectedOnsiteForView, setSelectedOnsiteForView] = useState<OnsiteService | null>(null);
   const [selectedClaimForView, setSelectedClaimForView] = useState<ProductClaim | null>(null);
+  const [selectedOncallForView, setSelectedOncallForView] = useState<OnCallService | null>(null);
 
   // 1. Setup Firebase Real-time listeners
   useEffect(() => {
@@ -554,6 +555,8 @@ export default function App() {
                 onUpdateJob={handleUpdateOnCall}
                 onDeleteJob={handleDeleteOnCall}
                 onImportJobs={handleImportOnCall}
+                selectedOncallForView={selectedOncallForView}
+                setSelectedOncallForView={setSelectedOncallForView}
                 onAddDropdownOption={handleAddDropdownOption}
                 onDeleteDropdownOption={handleDeleteDropdownOption}
               />
@@ -589,6 +592,9 @@ export default function App() {
                 onImportCustomers={handleImportCustomers}
                 onAddSalesRep={handleAddSalesRep}
                 onDeleteSalesRep={handleDeleteSalesRep}
+                onViewOnsiteJob={(job) => { setSelectedOnsiteForView(job); setActiveTab('onsite'); }}
+                onViewOncallJob={(job) => { setSelectedOncallForView(job); setActiveTab('oncall'); }}
+                onViewClaim={(claim) => { setSelectedClaimForView(claim); setActiveTab('claims'); }}
               />
             )}
 

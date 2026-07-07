@@ -75,6 +75,7 @@ export default function OnsiteServiceTab({
   const [cause, setCause] = useState('');
   const [actionTaken, setActionTaken] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [warrantyExpiryDate, setWarrantyExpiryDate] = useState('');
   const [status, setStatus] = useState<'Open' | 'In Progress' | 'Pending' | 'Resolved'>('Open');
   const [photos, setPhotos] = useState<ServicePhoto[]>([]);
   const [signedReportUrl, setSignedReportUrl] = useState('');
@@ -122,6 +123,7 @@ export default function OnsiteServiceTab({
     setCause('');
     setActionTaken('');
     setRemarks('');
+    setWarrantyExpiryDate('');
     setStatus('Open');
     setPhotos([]);
     setSignedReportUrl('');
@@ -153,6 +155,7 @@ export default function OnsiteServiceTab({
     setCause(job.cause || '');
     setActionTaken(job.actionTaken || '');
     setRemarks(job.remarks || '');
+    setWarrantyExpiryDate(job.warrantyExpiryDate || '');
     setStatus(job.status || 'Open');
     setPhotos(job.photos || []);
     setSignedReportUrl(job.signedReportUrl || '');
@@ -275,6 +278,7 @@ export default function OnsiteServiceTab({
       cause,
       actionTaken,
       remarks,
+      warrantyExpiryDate,
       status,
       photos,
       signedReportUrl,

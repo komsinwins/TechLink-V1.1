@@ -17,6 +17,8 @@ interface OnCallServiceProps {
   onUpdateJob: (id: string, job: OnCallService) => Promise<any>;
   onDeleteJob: (id: string) => Promise<any>;
   onImportJobs: (jobs: OnCallService[]) => Promise<any>;
+  selectedOncallForView?: OnCallService | null;
+  setSelectedOncallForView?: (job: OnCallService | null) => void;
   onAddDropdownOption: (key: any, value: string) => Promise<void>;
   onDeleteDropdownOption: (key: any, value: string) => Promise<void>;
 }
@@ -32,6 +34,8 @@ export default function OnCallServiceTab({
   onUpdateJob,
   onDeleteJob,
   onImportJobs,
+  selectedOncallForView,
+  setSelectedOncallForView,
   onAddDropdownOption,
   onDeleteDropdownOption
 }: OnCallServiceProps) {
@@ -61,7 +65,12 @@ export default function OnCallServiceTab({
   const [remarks, setRemarks] = useState('');
   const [status, setStatus] = useState<'Open' | 'In Progress' | 'Pending' | 'Resolved'>('Open');
 
-
+  React.useEffect(() => {
+    if (selectedOncallForView) {
+      handleEdit(selectedOncallForView);
+      setSelectedOncallForView?.(null);
+    }
+  }, [selectedOncallForView]);
 
   const resetForm = () => {
     setEditingId(null);

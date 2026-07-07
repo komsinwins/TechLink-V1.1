@@ -1,11 +1,19 @@
+export interface CustomerContact {
+  name: string;
+  detail: string;
+  phone: string;
+  email: string;
+}
+
 export interface Customer {
   id?: string;
   companyName: string;
   address: string;
-  contactName: string;
-  contactDetail: string;
-  contactPhone: string;
-  contactEmail: string;
+  contactName: string; // legacy primary
+  contactDetail: string; // legacy primary
+  contactPhone: string; // legacy primary
+  contactEmail: string; // legacy primary
+  contacts?: CustomerContact[];
   partnerCompany: string;
   salesRep: string;
   createdAt?: number;
@@ -42,6 +50,7 @@ export interface OnsiteService {
   remarks: string;
   status: 'Open' | 'In Progress' | 'Pending' | 'Resolved';
   productType?: string; // Product type added in work assignment
+  warrantyExpiryDate?: string; // YYYY-MM-DD
   photos: ServicePhoto[]; // Max 4 photos
   signedReportUrl: string; // Base64 file string for customer-signed PDF/report
   signedReportName: string; // Name of the uploaded file

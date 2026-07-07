@@ -15,6 +15,9 @@ interface CustomerDatabaseProps {
   onImportCustomers: (customers: Customer[]) => Promise<any>;
   onAddSalesRep: (name: string) => void;
   onDeleteSalesRep: (name: string) => void;
+  onViewOnsiteJob?: (job: OnsiteService) => void;
+  onViewOncallJob?: (job: OnCallService) => void;
+  onViewClaim?: (claim: ProductClaim) => void;
 }
 
 export default function CustomerDatabase({
@@ -28,7 +31,10 @@ export default function CustomerDatabase({
   onDeleteCustomer,
   onImportCustomers,
   onAddSalesRep,
-  onDeleteSalesRep
+  onDeleteSalesRep,
+  onViewOnsiteJob,
+  onViewOncallJob,
+  onViewClaim
 }: CustomerDatabaseProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -37,10 +43,7 @@ export default function CustomerDatabase({
   // Form states
   const [companyName, setCompanyName] = useState('');
   const [address, setAddress] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [contactDetail, setContactDetail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
+  const [contacts, setContacts] = useState([{ name: '', detail: '', phone: '', email: '' }]);
   const [partnerCompany, setPartnerCompany] = useState('');
   const [salesRep, setSalesRep] = useState('');
 
@@ -50,10 +53,7 @@ export default function CustomerDatabase({
   const resetForm = () => {
     setCompanyName('');
     setAddress('');
-    setContactName('');
-    setContactDetail('');
-    setContactPhone('');
-    setContactEmail('');
+    setContacts([{ name: '', detail: '', phone: '', email: '' }]);
     setPartnerCompany('');
     setSalesRep('');
     setEditingId(null);
@@ -64,10 +64,18 @@ export default function CustomerDatabase({
     setEditingId(customer.id || null);
     setCompanyName(customer.companyName || '');
     setAddress(customer.address || '');
-    setContactName(customer.contactName || '');
-    setContactDetail(customer.contactDetail || '');
-    setContactPhone(customer.contactPhone || '');
-    setContactEmail(customer.contactEmail || '');
+    
+    if (customer.contacts && customer.contacts.length > 0) {
+      setContacts(customer.contacts);
+    } else {
+      setContacts([{
+        name: customer.contactName || '',
+        detail: customer.contactDetail || '',
+        phone: customer.contactPhone || '',
+        email: customer.contactEmail || ''
+      }]);
+    }
+    
     setPartnerCompany(customer.partnerCompany || '');
     setSalesRep(customer.salesRep || salesRepOptions[0] || '');
     setIsFormOpen(true);
@@ -83,10 +91,12 @@ export default function CustomerDatabase({
     const payload: Customer = {
       companyName,
       address,
-      contactName,
-      contactDetail,
-      contactPhone,
-      contactEmail,
+      contacts,
+      // Legacy fields mappings for backwards compatibility
+      contactName: contacts[0]?.name || '',
+      contactDetail: contacts[0]?.detail || '',
+      contactPhone: contacts[0]?.phone || '',
+      contactEmail: contacts[0]?.email || '',
       partnerCompany,
       salesRep
     };
@@ -351,53 +361,104 @@ export default function CustomerDatabase({
                   />
                 </div>
 
-                {/* Contact Name */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ชื่อและนามสกุลของผู้ติดต่อ</label>
-                  <input
-                    type="text"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="คุณสมชาย เก่งกาจ"
-                    className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-gray-800"
-                  />
-                </div>
-
-                {/* Contact Details */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">รายละเอียดผู้ติดต่อ (ถ้ามี)</label>
-                  <input
-                    type="text"
-                    value={contactDetail}
-                    onChange={(e) => setContactDetail(e.target.value)}
-                    placeholder="เช่น ผู้จัดการฝ่ายไอที หรือเวลาที่สะดวกติดต่อ"
-                    className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-gray-800"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">เบอร์โทรผู้ติดต่อ</label>
-                    <input
-                      type="text"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="081-234-5678"
-                      className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-gray-800"
-                    />
+                {/* Contacts List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-1">
+                    <span className="text-xs font-bold text-gray-700">รายชื่อผู้ติดต่อ</span>
+                    <button
+                      type="button"
+                      onClick={() => setContacts([...contacts, { name: '', detail: '', phone: '', email: '' }])}
+                      className="flex items-center gap-1 text-[10px] text-blue-600 font-bold hover:bg-blue-50 px-2 py-1 rounded cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> เพิ่มผู้ติดต่อ
+                    </button>
                   </div>
-                  {/* Email */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">อีเมลผู้ติดต่อ</label>
-                    <input
-                      type="email"
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                      placeholder="somchai@company.com"
-                      className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-gray-800"
-                    />
-                  </div>
+                  
+                  {contacts.map((contact, index) => (
+                    <div key={index} className="bg-slate-50 border border-slate-200 p-3 rounded-lg relative">
+                      {contacts.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newContacts = [...contacts];
+                            newContacts.splice(index, 1);
+                            setContacts(newContacts);
+                          }}
+                          className="absolute top-2 right-2 text-slate-400 hover:text-red-500 cursor-pointer"
+                          title="ลบผู้ติดต่อนี้"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      
+                      <div className="space-y-2">
+                        {/* Contact Name */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-700 mb-0.5">ชื่อผู้ติดต่อ</label>
+                          <input
+                            type="text"
+                            value={contact.name}
+                            onChange={(e) => {
+                              const newContacts = [...contacts];
+                              newContacts[index].name = e.target.value;
+                              setContacts(newContacts);
+                            }}
+                            placeholder="คุณสมชาย เก่งกาจ"
+                            className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-800"
+                          />
+                        </div>
+
+                        {/* Contact Details */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-700 mb-0.5">รายละเอียด</label>
+                          <input
+                            type="text"
+                            value={contact.detail}
+                            onChange={(e) => {
+                              const newContacts = [...contacts];
+                              newContacts[index].detail = e.target.value;
+                              setContacts(newContacts);
+                            }}
+                            placeholder="ตำแหน่ง หรือเวลาที่สะดวกติดต่อ"
+                            className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-800"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Phone */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-700 mb-0.5">เบอร์โทร</label>
+                            <input
+                              type="text"
+                              value={contact.phone}
+                              onChange={(e) => {
+                                const newContacts = [...contacts];
+                                newContacts[index].phone = e.target.value;
+                                setContacts(newContacts);
+                              }}
+                              placeholder="081-234-5678"
+                              className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-800"
+                            />
+                          </div>
+                          {/* Email */}
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-700 mb-0.5">อีเมล</label>
+                            <input
+                              type="email"
+                              value={contact.email}
+                              onChange={(e) => {
+                                const newContacts = [...contacts];
+                                newContacts[index].email = e.target.value;
+                                setContacts(newContacts);
+                              }}
+                              placeholder="somchai@company.com"
+                              className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-800"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Partner Company */}
@@ -528,7 +589,11 @@ export default function CustomerDatabase({
                         {onsiteJobs
                           .filter(j => j.customerCompany === selectedCustomerHistory.companyName)
                           .map(job => (
-                            <tr key={job.id} className="hover:bg-slate-50/50">
+                            <tr 
+                              key={job.id} 
+                              className="hover:bg-slate-50/50 cursor-pointer"
+                              onClick={() => onViewOnsiteJob?.(job)}
+                            >
                               <td className="py-1.5 px-2 font-mono font-bold text-blue-600">{job.jobNo}</td>
                               <td className="py-1.5 px-2">{job.serviceType}</td>
                               <td className="py-1.5 px-2">{[job.operator1, job.operator2].filter(Boolean).join(', ') || '-'}</td>
@@ -574,7 +639,11 @@ export default function CustomerDatabase({
                         {oncallJobs
                           .filter(j => j.customerCompany === selectedCustomerHistory.companyName)
                           .map(job => (
-                            <tr key={job.id} className="hover:bg-slate-50/50">
+                            <tr 
+                              key={job.id} 
+                              className="hover:bg-slate-50/50 cursor-pointer"
+                              onClick={() => onViewOncallJob?.(job)}
+                            >
                               <td className="py-1.5 px-2">{job.receivedDate}</td>
                               <td className="py-1.5 px-2">{job.productType}</td>
                               <td className="py-1.5 px-2 truncate max-w-xs">{job.symptoms}</td>
@@ -620,7 +689,11 @@ export default function CustomerDatabase({
                         {claims
                           .filter(c => c.customerCompany === selectedCustomerHistory.companyName)
                           .map(claim => (
-                            <tr key={claim.id} className="hover:bg-slate-50/50">
+                            <tr 
+                              key={claim.id} 
+                              className="hover:bg-slate-50/50 cursor-pointer"
+                              onClick={() => onViewClaim?.(claim)}
+                            >
                               <td className="py-1.5 px-2">{claim.claimReceivedDate}</td>
                               <td className="py-1.5 px-2 font-semibold">{claim.brand} - {claim.model}</td>
                               <td className="py-1.5 px-2 font-mono">{claim.serialNumber}</td>
