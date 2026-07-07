@@ -59,6 +59,7 @@ export interface OnsiteService {
 
 export interface OnCallService {
   id?: string;
+  jobNo?: string;
   customerCompany: string;
   contactName: string;
   contactDetail: string;

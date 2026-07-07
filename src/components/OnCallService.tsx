@@ -43,6 +43,7 @@ export default function OnCallServiceTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'}>({key: 'createdAt', direction: 'desc'});
 
   // Search customer query for auto-fill
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -131,6 +132,24 @@ export default function OnCallServiceTab({
     setCustomerSearchQuery('');
   };
 
+  const generateJobNo = (): string => {
+    const currentYear = new Date().getFullYear();
+    const shortYear = String(currentYear).substring(2);
+    // Find all oncall jobs for the current year based on jobNo
+    const sameYearJobs = oncallJobs.filter(j => {
+      if (!j.jobNo) return false;
+      const parts = j.jobNo.split('/');
+      if (parts && parts.length > 1) {
+        return parts[1] === String(currentYear) || parts[1] === shortYear;
+      }
+      return false;
+    });
+
+    const nextSeq = sameYearJobs.length + 1;
+    const formattedSeq = String(nextSeq).padStart(3, '0');
+    return `On call${formattedSeq}/${shortYear}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerCompany.trim()) {
@@ -138,7 +157,10 @@ export default function OnCallServiceTab({
       return;
     }
 
+    const resolvedJobNo = editingId ? (oncallJobs.find(j => j.id === editingId)?.jobNo || generateJobNo()) : generateJobNo();
+
     const payload: OnCallService = {
+      jobNo: resolvedJobNo,
       customerCompany,
       contactName,
       contactDetail,
@@ -176,11 +198,12 @@ export default function OnCallServiceTab({
     setIsExporting(true);
     try {
       const headers = [
-        'ชื่อบริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 
+        'เลขที่งาน', 'ชื่อบริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 
         'บริษัทคู่ค้า', 'บริการ/ประเภทบริการ', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่แก้ไขเสร็จงาน', 
         'ประเภทสินค้าที่รับแจ้ง', 'ชื่อผู้ปฏิบัติงาน', 'อาการรับแจ้ง', 'สรุปการแก้ไข', 'หมายเหตุ', 'สถานะ'
       ];
       const dataRows = oncallJobs.map(j => [
+        j.jobNo || '',
         j.customerCompany,
         j.contactName,
         j.contactDetail,
@@ -211,11 +234,12 @@ export default function OnCallServiceTab({
 
   const handleExportCSV = () => {
     const headers = [
-      'ชื่อบริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 
+      'เลขที่งาน', 'ชื่อบริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 'อีเมลติดต่อ', 
       'บริษัทคู่ค้า', 'บริการ/ประเภทบริการ', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่แก้ไขเสร็จงาน', 
       'ประเภทสินค้าที่รับแจ้ง', 'ชื่อผู้ปฏิบัติงาน', 'อาการรับแจ้ง', 'สรุปการแก้ไข', 'หมายเหตุ', 'สถานะ'
     ];
     const data = oncallJobs.map(j => ({
+      'เลขที่งาน': j.jobNo || '',
       'ชื่อบริษัทลูกค้า': j.customerCompany,
       'ชื่อผู้ติดต่อ': j.contactName,
       'รายละเอียดผู้ติดต่อ': j.contactDetail,
@@ -246,6 +270,7 @@ export default function OnCallServiceTab({
       const parsed = parseCSV(text);
       
       const mapped: OnCallService[] = parsed.map(item => ({
+        jobNo: item['เลขที่งาน'] || item['jobNo'] || '',
         customerCompany: item['ชื่อบริษัทลูกค้า'] || item['customerCompany'] || '',
         contactName: item['ชื่อผู้ติดต่อ'] || item['contactName'] || '',
         contactDetail: item['รายละเอียดผู้ติดต่อ'] || item['contactDetail'] || '',
@@ -278,13 +303,27 @@ export default function OnCallServiceTab({
   const filteredJobs = oncallJobs.filter(j => {
     const search = searchTerm.toLowerCase();
     return (
+      j.jobNo?.toLowerCase().includes(search) ||
       j.customerCompany?.toLowerCase().includes(search) ||
       j.contactName?.toLowerCase().includes(search) ||
       j.operator?.toLowerCase().includes(search) ||
       j.productType?.toLowerCase().includes(search) ||
       j.reportedCategory?.toLowerCase().includes(search)
     );
+  }).sort((a, b) => {
+    const aVal = (a as any)[sortConfig.key] || '';
+    const bVal = (b as any)[sortConfig.key] || '';
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const searchedCustomers = customers.filter(c => 
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
@@ -372,14 +411,14 @@ export default function OnCallServiceTab({
           <table className="min-w-full divide-y divide-slate-200 text-xs">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
-                <th className="py-2 px-2.5">ลูกค้า / ผู้ติดต่อ</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('customerCompany')}>ลูกค้า / ผู้ติดต่อ {sortConfig.key === 'customerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">เบอร์โทร / อีเมล</th>
-                <th className="py-2 px-2.5">คู่ค้า / บริการที่ขอ</th>
-                <th className="py-2 px-2.5">สินค้าหลัก / ช่าง</th>
-                <th className="py-2 px-2.5">วันที่รับ / เสร็จ</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('productType')}>คู่ค้า / บริการที่ขอ {sortConfig.key === 'productType' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('operator')}>สินค้าหลัก / ช่าง {sortConfig.key === 'operator' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('receivedDate')}>วันที่รับ / เสร็จ {sortConfig.key === 'receivedDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">เวลาแก้ไขปัญหา</th>
                 <th className="py-2 px-2.5">อาการและวิธีแก้</th>
-                <th className="py-2 px-2.5">สถานะ</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('status')}>สถานะ {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 text-right">จัดการ</th>
               </tr>
             </thead>
@@ -407,6 +446,7 @@ export default function OnCallServiceTab({
                           {isSlaBreached && <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="งานค้างเกิน 7 วัน!" />}
                           <div className="font-bold text-slate-900">{job.customerCompany}</div>
                         </div>
+                        {job.jobNo && <div className="text-[10px] text-blue-600 font-bold mt-0.2">{job.jobNo}</div>}
                         <div className="text-[10px] text-slate-500 mt-0.2">{job.contactName} {job.contactDetail ? `(${job.contactDetail})` : ''}</div>
                       </td>
 

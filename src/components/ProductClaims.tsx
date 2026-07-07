@@ -45,6 +45,7 @@ export default function ProductClaimsTab({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'}>({key: 'createdAt', direction: 'desc'});
 
   // Claim printable document view modal
   const [printableClaimDoc, setPrintableClaimDoc] = useState<ProductClaim | null>(null);
@@ -408,13 +409,27 @@ export default function ProductClaimsTab({
   const filteredClaims = claims.filter(c => {
     const search = searchTerm.toLowerCase();
     return (
+      c.claimNo?.toLowerCase().includes(search) ||
       c.customerCompany?.toLowerCase().includes(search) ||
       c.brand?.toLowerCase().includes(search) ||
       c.model?.toLowerCase().includes(search) ||
       c.serialNumber?.toLowerCase().includes(search) ||
       c.claimStatus?.toLowerCase().includes(search)
     );
+  }).sort((a, b) => {
+    const aVal = (a as any)[sortConfig.key] || '';
+    const bVal = (b as any)[sortConfig.key] || '';
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const searchedCustomers = customers.filter(c => 
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
@@ -502,15 +517,15 @@ export default function ProductClaimsTab({
           <table className="min-w-full divide-y divide-slate-250 text-xs animate-fade-in">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
-                <th className="py-2 px-2.5">ลูกค้า / ผู้ติดต่อ</th>
-                <th className="py-2 px-2.5">สินค้าหลัก / รุ่น</th>
-                <th className="py-2 px-2.5">ซีเรียลนัมเบอร์</th>
-                <th className="py-2 px-2.5">ข้อมูลประกันสินค้า</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('customerCompany')}>ลูกค้า / ผู้ติดต่อ {sortConfig.key === 'customerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('model')}>สินค้าหลัก / รุ่น {sortConfig.key === 'model' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('serialNumber')}>ซีเรียลนัมเบอร์ {sortConfig.key === 'serialNumber' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('purchaseDate')}>ข้อมูลประกันสินค้า {sortConfig.key === 'purchaseDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">ประกันที่เหลืออยู่</th>
-                <th className="py-2 px-2.5">สถานที่ส่ง / อาคาร</th>
-                <th className="py-2 px-2.5">วันที่รับ / ส่งเคลม</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimDestination')}>สถานที่ส่ง / อาคาร {sortConfig.key === 'claimDestination' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimReceivedDate')}>วันที่รับ / ส่งเคลม {sortConfig.key === 'claimReceivedDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">รูปถ่าย</th>
-                <th className="py-2 px-2.5">สถานะเคลม</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimStatus')}>สถานะเคลม {sortConfig.key === 'claimStatus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 text-right">จัดการ</th>
               </tr>
             </thead>

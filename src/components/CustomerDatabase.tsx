@@ -40,6 +40,7 @@ export default function CustomerDatabase({
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'}>({key: 'createdAt', direction: 'desc'});
 
   // Form states
   const [companyName, setCompanyName] = useState('');
@@ -197,7 +198,20 @@ export default function CustomerDatabase({
       c.contactEmail?.toLowerCase().includes(search) ||
       c.partnerCompany?.toLowerCase().includes(search)
     );
+  }).sort((a, b) => {
+    const aVal = (a as any)[sortConfig.key] || '';
+    const bVal = (b as any)[sortConfig.key] || '';
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   return (
     <div className="space-y-3" id="customers-tab">
@@ -271,10 +285,10 @@ export default function CustomerDatabase({
           <table className="min-w-full divide-y divide-slate-200 text-xs">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
-                <th className="py-2 px-3">ชื่อบริษัทลูกค้า</th>
-                <th className="py-2 px-3">ชื่อผู้ติดต่อ / รายละเอียด</th>
+                <th className="py-2 px-3 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('companyName')}>ชื่อบริษัทลูกค้า {sortConfig.key === 'companyName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-3 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('contactName')}>ชื่อผู้ติดต่อ / รายละเอียด {sortConfig.key === 'contactName' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-3">เบอร์โทร / อีเมล</th>
-                <th className="py-2 px-3">คู่ค้าหลัก / พนักงานขาย</th>
+                <th className="py-2 px-3 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('partnerCompany')}>คู่ค้าหลัก / พนักงานขาย {sortConfig.key === 'partnerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-3 text-center">ประวัติ</th>
                 <th className="py-2 px-3 text-right">จัดการ</th>
               </tr>

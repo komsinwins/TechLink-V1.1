@@ -47,6 +47,7 @@ export default function OnsiteServiceTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc'|'desc'}>({key: 'createdAt', direction: 'desc'});
   
   // PDF export modal view
   const [exportTargetJob, setExportTargetJob] = useState<OnsiteService | null>(null);
@@ -492,7 +493,20 @@ export default function OnsiteServiceTab({
       j.operator2?.toLowerCase().includes(search) ||
       j.serviceType?.toLowerCase().includes(search)
     );
+  }).sort((a, b) => {
+    const aVal = (a as any)[sortConfig.key] || '';
+    const bVal = (b as any)[sortConfig.key] || '';
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   const searchedCustomers = customers.filter(c => 
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
@@ -580,14 +594,14 @@ export default function OnsiteServiceTab({
           <table className="min-w-full divide-y divide-slate-200 text-xs">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
-                <th className="py-2 px-2.5">เลขใบงาน</th>
-                <th className="py-2 px-2.5">ลูกค้า / ผู้ติดต่อ</th>
-                <th className="py-2 px-2.5">ประเภท / สถานที่</th>
-                <th className="py-2 px-2.5">ผู้ปฏิบัติงาน / เซลส์</th>
-                <th className="py-2 px-2.5">วันที่ดำเนินการ</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('jobNo')}>เลขใบงาน {sortConfig.key === 'jobNo' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('customerCompany')}>ลูกค้า / ผู้ติดต่อ {sortConfig.key === 'customerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('serviceType')}>ประเภท / สถานที่ {sortConfig.key === 'serviceType' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('operator1')}>ผู้ปฏิบัติงาน / เซลส์ {sortConfig.key === 'operator1' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('startServiceDate')}>วันที่ดำเนินการ {sortConfig.key === 'startServiceDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">คำนวณเวลา</th>
                 <th className="py-2 px-2.5">เอกสาร / เซ็นชื่อ</th>
-                <th className="py-2 px-2.5">สถานะ</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('status')}>สถานะ {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 text-right">จัดการ</th>
               </tr>
             </thead>
