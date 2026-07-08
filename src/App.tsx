@@ -294,8 +294,17 @@ export default function App() {
         setUser(result.user);
         setNeedsAuth(false);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login failed:', err);
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        // Ignore user cancelling popup
+        return;
+      }
+      if (err?.code === 'auth/user-disabled') {
+        alert('บัญชีนี้ถูกระงับการใช้งาน (User disabled) โปรดตรวจสอบใน Firebase Console ว่าบัญชีของคุณไม่ได้ถูกปิดใช้งาน (Disable) หรือติดต่อผู้ดูแลระบบ');
+      } else {
+        alert('การเข้าสู่ระบบล้มเหลว: ' + err.message);
+      }
     } finally {
       setIsLoggingIn(false);
     }

@@ -12,16 +12,12 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-
-// Get custom Firestore database instance
 export const db = getFirestore(app, "ai-studio-wsstechlinkv11-a52a8d1d-b83c-438f-bfab-510d0ec65637");
-
 export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;
 
@@ -55,7 +51,9 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     cachedAccessToken = credential.accessToken;
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    if (error?.code !== 'auth/popup-closed-by-user' && error?.code !== 'auth/cancelled-popup-request') {
+      console.error('Sign in error:', error);
+    }
     throw error;
   } finally {
     isSigningIn = false;
@@ -70,4 +68,3 @@ export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
 };
-

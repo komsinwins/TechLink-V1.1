@@ -48,7 +48,7 @@ export async function uploadFileToDrive(
   fileName: string,
   folderName: string,
   accessToken: string
-): Promise<{ fileId: string; webViewLink: string }> {
+): Promise<{ fileId: string; webViewLink: string; webContentLink?: string; thumbnailLink?: string }> {
   const folderId = await getOrCreateFolder(folderName, accessToken);
 
   const metadata = {
@@ -74,8 +74,25 @@ export async function uploadFileToDrive(
 
   const uploadData = await uploadRes.json();
   
+  try {
+    // Make the file publicly accessible so images can be displayed
+    await fetch(`${DRIVE_API_URL}/${uploadData.id}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: 'reader',
+        type: 'anyone',
+      }),
+    });
+  } catch (e) {
+    console.error('Failed to set file permissions:', e);
+  }
+
   // Get the webViewLink
-  const getRes = await fetch(`${DRIVE_API_URL}/${uploadData.id}?fields=id,webViewLink`, {
+  const getRes = await fetch(`${DRIVE_API_URL}/${uploadData.id}?fields=id,webViewLink,webContentLink,thumbnailLink`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -87,7 +104,12 @@ export async function uploadFileToDrive(
   }
 
   const getData = await getRes.json();
-  return { fileId: getData.id, webViewLink: getData.webViewLink };
+  return { 
+    fileId: getData.id, 
+    webViewLink: getData.webViewLink,
+    webContentLink: getData.webContentLink,
+    thumbnailLink: getData.thumbnailLink
+  };
 }
 
 // Convert base64 data URL to Blob

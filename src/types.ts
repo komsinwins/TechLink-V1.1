@@ -54,6 +54,7 @@ export interface OnsiteService {
   photos: ServicePhoto[]; // Max 4 photos
   signedReportUrl: string; // Base64 file string for customer-signed PDF/report
   signedReportName: string; // Name of the uploaded file
+  signedReportFileId?: string; // Google Drive file ID
   createdAt?: number;
 }
 

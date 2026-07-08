@@ -164,7 +164,7 @@ export default function ProductClaimsTab({
 
     const token = await getAccessToken();
     if (!token) {
-      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลดรูปภาพไปยัง Google Drive');
+      alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive (เซสชันอาจหมดอายุจากการรีเฟรชหน้าเว็บ) \n\nกรุณากด "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง และอย่าลืมติ๊กถูกอนุญาตสิทธิ์ Google Drive ในหน้าต่างเข้าสู่ระบบ');
       return;
     }
 
@@ -175,7 +175,7 @@ export default function ProductClaimsTab({
     setIsUploading(true);
     try {
       const result = await uploadFileToDrive(file, fileName, 'TechLink_Claim Product', token);
-      const url = result.webViewLink || result.fileId;
+      const url = result.thumbnailLink || result.webContentLink || result.webViewLink || result.fileId;
       if (ref === 'received') {
         setReceivedPhoto(url);
       } else {
@@ -264,7 +264,7 @@ export default function ProductClaimsTab({
         'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
         'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 
         'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'สถานที่ส่งเคลม', 'อาคารที่แจ้งเคลม', 
-        'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ตรวจสอบ', 'สถานะสินค้าเคลม', 'หมายเหตุ'
+        'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ปฏิบัติงาน', 'สถานะสินค้าเคลม', 'หมายเหตุ'
       ];
       const dataRows = claims.map(c => [
         c.customerCompany,
@@ -304,7 +304,7 @@ export default function ProductClaimsTab({
       'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
       'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 
       'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'สถานที่ส่งเคลม', 'อาคารที่แจ้งเคลม', 
-      'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ตรวจสอบ', 'สถานะสินค้าเคลม', 'หมายเหตุ'
+      'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ปฏิบัติงาน', 'สถานะสินค้าเคลม', 'หมายเหตุ'
     ];
     const data = claims.map(c => ({
       'ชื่อของบริษัทลูกค้า': c.customerCompany,
@@ -324,7 +324,7 @@ export default function ProductClaimsTab({
       'อาคารที่แจ้งเคลม': c.claimBuilding,
       'วันที่รับสินค้าเคลม': c.claimReceivedDate,
       'วันส่งสินค้าเคลม': c.claimSentDate,
-      'ชื่อผู้ตรวจสอบ': c.inspector,
+      'ชื่อผู้ปฏิบัติงาน': c.inspector,
       'สถานะสินค้าเคลม': c.claimStatus,
       'หมายเหตุ': c.remarks
     }));
@@ -358,7 +358,7 @@ export default function ProductClaimsTab({
         claimBuilding: item['อาคารที่แจ้งเคลม'] || item['claimBuilding'] || '',
         claimReceivedDate: item['วันที่รับสินค้าเคลม'] || item['claimReceivedDate'] || '',
         claimSentDate: item['วันส่งสินค้าเคลม'] || item['claimSentDate'] || '',
-        inspector: item['ชื่อผู้ตรวจสอบ'] || item['inspector'] || '',
+        inspector: item['ชื่อผู้ปฏิบัติงาน'] || item['ชื่อผู้ตรวจสอบ'] || item['inspector'] || '',
         claimStatus: (item['สถานะสินค้าเคลม'] || item['claimStatus'] || 'Claiming') as any,
         remarks: item['หมายเหตุ'] || item['remarks'] || '',
         receivedPhoto: '',
@@ -381,23 +381,34 @@ export default function ProductClaimsTab({
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
+      const pages = element.querySelectorAll('.pdf-page');
+      if (pages.length === 0) return;
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const pageHeight = 297;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      for (let i = 0; i < pages.length; i++) {
+        const pageElement = pages[i] as HTMLElement;
+        const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
+        if (i > 0) pdf.addPage();
+        
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
+        
+        while (heightLeft > 5) {
+          position -= pageHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
       }
       pdf.save(`ClaimReport_${printableClaimDoc?.serialNumber || 'S_N'}.pdf`);
     } catch (err) {
@@ -909,13 +920,13 @@ export default function ProductClaimsTab({
                     />
                   </div>
                    <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อผู้ตรวจสอบ (ช่างเทคนิค)</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อผู้ปฏิบัติงาน</label>
                     <select
                       value={inspector}
                       onChange={(e) => setInspector(e.target.value)}
                       className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded bg-white text-gray-800"
                     >
-                      <option value="">-- เลือกช่างผู้ตรวจสอบ --</option>
+                      <option value="">-- เลือกผู้ปฏิบัติงาน --</option>
                       {operators.map(op => (
                         <option key={op} value={op}>{op}</option>
                       ))}
@@ -1070,9 +1081,10 @@ export default function ProductClaimsTab({
               {/* Actual Printable element */}
               <div 
                 id="printable-claim-report-doc" 
-                className="bg-white p-8 shadow-sm border border-gray-200 max-w-2xl mx-auto text-xs text-gray-800 leading-relaxed space-y-6"
+                className="bg-gray-100 flex flex-col gap-6 items-center select-text"
                 style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
               >
+                <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                 {/* Header layout */}
                 <div className="border-b-2 border-amber-500 pb-4 flex justify-between items-center">
                   <div>
@@ -1130,7 +1142,7 @@ export default function ProductClaimsTab({
                     <div className="font-bold text-gray-700">{printableClaimDoc.claimSentDate || '-'}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 font-bold text-[9px]">ผู้ตรวจสอบ</div>
+                    <div className="text-gray-400 font-bold text-[9px]">ผู้ปฏิบัติงาน</div>
                     <div className="font-bold text-gray-700">{printableClaimDoc.inspector || '-'}</div>
                   </div>
                 </div>
@@ -1143,12 +1155,26 @@ export default function ProductClaimsTab({
                   </div>
                 )}
 
+                {/* Signature pads for customer report */}
+                <div className="pt-8 mt-4 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
+                  <div className="space-y-12">
+                    <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
+                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                    <div className="text-gray-500 text-[11px]">(........................................................)</div>
+                  </div>
+                  <div className="space-y-12">
+                    <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
+                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                    <div className="text-gray-500 text-[11px]">(........................................................)</div>
+                  </div>
+                </div>
+
                 {/* Images Attachment Visual section */}
                 {(printableClaimDoc.receivedPhoto || printableClaimDoc.returnedPhoto) && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <h4 className="font-bold text-gray-900 text-xs mb-3 flex items-center gap-1">
+                  <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
+                    <h4 className="font-bold text-blue-900 text-sm border-b border-blue-100 pb-1.5 flex items-center gap-1">
                       <ImageIcon className="w-4 h-4 text-blue-600" />
-                      <span>หลักฐานรูปถ่ายประกอบรายงานการเคลม (Claims Visual Proof)</span>
+                      <span>รูปถ่ายบันทึกการปฏิบัติงาน</span>
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {printableClaimDoc.receivedPhoto && (
@@ -1171,22 +1197,9 @@ export default function ProductClaimsTab({
                   </div>
                 )}
 
-                {/* Signature slot claim sheet */}
-                <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
-                  <div className="space-y-12">
-                    <div className="text-gray-500 font-bold">พนักงานผู้ส่งเคลมและวิเคราะห์</div>
-                    <div className="border-b border-gray-300 w-44 mx-auto h-5"></div>
-                    <div className="text-gray-600">(........................................................)</div>
-                  </div>
-                  <div className="space-y-12">
-                    <div className="text-gray-500 font-bold">ลูกค้าผู้รับมอบของคืนเคลม</div>
-                    <div className="border-b border-gray-300 w-44 mx-auto h-5"></div>
-                    <div className="text-gray-600">(........................................................)</div>
-                  </div>
-                </div>
-
               </div>
             </div>
+          </div>
 
             {/* Document export bar */}
             <div className="bg-gray-50 p-4 border-t border-gray-100 flex flex-wrap justify-between gap-3 items-center shrink-0">

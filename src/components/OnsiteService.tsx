@@ -84,6 +84,7 @@ export default function OnsiteServiceTab({
   const [photos, setPhotos] = useState<ServicePhoto[]>([]);
   const [signedReportUrl, setSignedReportUrl] = useState('');
   const [signedReportName, setSignedReportName] = useState('');
+  const [signedReportFileId, setSignedReportFileId] = useState('');
 
   // Dropdown quick addition inputs
   const [newServiceType, setNewServiceType] = useState('');
@@ -132,6 +133,7 @@ export default function OnsiteServiceTab({
     setPhotos([]);
     setSignedReportUrl('');
     setSignedReportName('');
+    setSignedReportFileId('');
     setCustomerSearchQuery('');
     setIsFormOpen(false);
   };
@@ -164,6 +166,7 @@ export default function OnsiteServiceTab({
     setPhotos(job.photos || []);
     setSignedReportUrl(job.signedReportUrl || '');
     setSignedReportName(job.signedReportName || '');
+    setSignedReportFileId(job.signedReportFileId || '');
     setIsFormOpen(true);
   };
 
@@ -193,7 +196,7 @@ export default function OnsiteServiceTab({
 
     const token = await getAccessToken();
     if (!token) {
-      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลดรูปภาพไปยัง Google Drive');
+      alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive (เซสชันอาจหมดอายุจากการรีเฟรชหน้าเว็บ) \n\nกรุณากด "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง และอย่าลืมติ๊กถูกอนุญาตสิทธิ์ Google Drive ในหน้าต่างเข้าสู่ระบบ');
       return;
     }
 
@@ -204,7 +207,7 @@ export default function OnsiteServiceTab({
         // Upload directly to Drive
         const result = await uploadFileToDrive(file, file.name, 'TechLink_PIC', token);
         uploadedPhotos.push({
-          url: result.webViewLink || result.fileId, // Use webViewLink if possible
+          url: result.thumbnailLink || result.webContentLink || result.webViewLink || result.fileId,
           caption: '',
           timestamp: Date.now()
         });
@@ -235,15 +238,16 @@ export default function OnsiteServiceTab({
 
     const token = await getAccessToken();
     if (!token) {
-      alert('กรุณาเข้าสู่ระบบ Google เพื่ออัปโหลด PDF ไปยัง Google Drive');
+      alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive (เซสชันอาจหมดอายุจากการรีเฟรชหน้าเว็บ) \n\nกรุณากด "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง และอย่าลืมติ๊กถูกอนุญาตสิทธิ์ Google Drive ในหน้าต่างเข้าสู่ระบบ');
       return;
     }
 
     setIsUploading(true);
     try {
       const result = await uploadFileToDrive(file, file.name, 'TechLink_PDF', token);
-      setSignedReportUrl(result.webViewLink || result.fileId);
+      setSignedReportUrl(result.webContentLink || result.webViewLink || result.fileId);
       setSignedReportName(file.name);
+      setSignedReportFileId(result.fileId);
     } catch (err: any) {
       console.error(err);
       alert('เกิดข้อผิดพลาดในการอัปโหลดเอกสาร: ' + err.message);
@@ -306,7 +310,8 @@ export default function OnsiteServiceTab({
       status,
       photos,
       signedReportUrl,
-      signedReportName
+      signedReportName,
+      signedReportFileId
     };
 
     try {
@@ -437,7 +442,8 @@ export default function OnsiteServiceTab({
         remarks: item['หมายเหตุ'] || '',
         photos: [],
         signedReportUrl: '',
-        signedReportName: ''
+        signedReportName: '',
+        signedReportFileId: ''
       })).filter(j => j.customerCompany);
 
       if (mapped.length > 0) {
@@ -457,24 +463,36 @@ export default function OnsiteServiceTab({
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL('image/png');
+      const pages = element.querySelectorAll('.pdf-page');
+      if (pages.length === 0) return;
+
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
-      const pageHeight = 295;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const pageHeight = 297;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      for (let i = 0; i < pages.length; i++) {
+        const pageElement = pages[i] as HTMLElement;
+        const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let heightLeft = imgHeight;
+        let position = 0;
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
+        if (i > 0) pdf.addPage();
+        
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
+        
+        while (heightLeft > 5) {
+          position -= pageHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
       }
+
       const prefix = reportViewMode === 'simple' ? 'CustomerSummary' : 'JobService';
       pdf.save(`${prefix}_${exportTargetJob?.jobNo?.replace('/', '_')}.pdf`);
     } catch (err) {
@@ -668,10 +686,10 @@ export default function OnsiteServiceTab({
                       {/* Signed Report Indicator */}
                       <td className="py-1.5 px-2.5">
                         {job.signedReportUrl ? (
-                          <div className="flex items-center gap-1 text-emerald-600 font-bold text-[10px]" title={job.signedReportName}>
+                          <a href={job.signedReportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-emerald-600 font-bold text-[10px] hover:underline" title={job.signedReportName}>
                             <Paperclip className="w-3 h-3" />
-                            <span>แนบแล้ว</span>
-                          </div>
+                            <span>เปิด / ดาวน์โหลด</span>
+                          </a>
                         ) : (
                           <span className="text-slate-400 italic text-[10px]">ไม่มีรายงานเซ็นกลับ</span>
                         )}
@@ -1165,7 +1183,7 @@ export default function OnsiteServiceTab({
                   {signedReportUrl && (
                     <div className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-2.5 py-1 flex items-center gap-1 font-bold">
                       <Check className="w-3.5 h-3.5" />
-                      <span className="truncate max-w-[150px]">{signedReportName}</span>
+                      <a href={signedReportUrl} target="_blank" rel="noopener noreferrer" className="truncate max-w-[150px] hover:underline cursor-pointer">{signedReportName || 'เปิดไฟล์'}</a>
                     </div>
                   )}
                   <button
@@ -1179,7 +1197,7 @@ export default function OnsiteServiceTab({
                   <input
                     type="file"
                     ref={reportInputRef}
-                    accept="image/*,application/pdf"
+                    accept="image/*,application/pdf,.pdf"
                     onChange={handleReportUpload}
                     className="hidden"
                   />
@@ -1239,11 +1257,11 @@ export default function OnsiteServiceTab({
               {/* Actual Printable element */}
               <div 
                 id="printable-job-service-doc" 
-                className="bg-white p-8 shadow-sm border border-gray-200 max-w-2xl mx-auto text-xs text-gray-800 leading-relaxed space-y-6 select-text"
+                className="bg-gray-100 flex flex-col gap-6 items-center select-text"
                 style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
               >
                 {reportViewMode === 'full' ? (
-                  <>
+                  <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     {/* Header layout according to prompt */}
                     <div className="border-b-2 border-blue-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                       <div>
@@ -1323,19 +1341,19 @@ export default function OnsiteServiceTab({
                     {/* SIGNATURE SECTION AS REQUESTED */}
                     <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
                       <div className="space-y-12">
-                        <div className="text-gray-500 font-bold">ผู้ตรวจสอบรายงาน (Inspector)</div>
+                        <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
                         <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-600">(........................................................)</div>
+                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
                       <div className="space-y-12">
-                        <div className="text-gray-500 font-bold">ผู้รับมอบงาน / ตัวแทนลูกค้า (Customer)</div>
+                        <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
                         <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-600">(........................................................)</div>
+                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 ) : (
-                  <>
+                  <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     {/* Simple summary view for customer reporting */}
                     <div className="border-b-2 border-emerald-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                       <div>
@@ -1406,25 +1424,25 @@ export default function OnsiteServiceTab({
                     {/* Signature pads for customer report */}
                     <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
                       <div className="space-y-12">
-                        <div className="text-gray-500 font-bold text-[11px]">ผู้ปฏิบัติหน้าที่รายงาน (Service Engineer Signature)</div>
+                        <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
                         <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-600 text-[10px]">(........................................................)</div>
+                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
                       <div className="space-y-12">
-                        <div className="text-gray-500 font-bold text-[11px]">ผู้ส่งมอบ / ตัวแทนลูกค้าเซ็นรับทราบ (Customer Acknowledgement)</div>
+                        <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
                         <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-600 text-[10px]">(........................................................)</div>
+                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Photo Pages (Pages 2, 3, 4 sequentially as requested) */}
                 {exportTargetJob.photos && exportTargetJob.photos.length > 0 && (
-                  <div className="space-y-6 pt-6 border-t-2 border-gray-200 mt-6 page-break-before">
+                  <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     <h3 className="font-extrabold text-blue-900 text-sm border-b border-blue-100 pb-1.5 flex items-center gap-1">
                       <ImageIcon className="w-4 h-4 text-blue-600" />
-                      <span>ภาคผนวกรูปถ่ายบันทึกการปฏิบัติงาน (Photos Appendix)</span>
+                      <span>รูปถ่ายบันทึกการปฏิบัติงาน</span>
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
