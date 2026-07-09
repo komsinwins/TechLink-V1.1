@@ -302,6 +302,8 @@ export default function App() {
       }
       if (err?.code === 'auth/user-disabled') {
         alert('บัญชีนี้ถูกระงับการใช้งาน (User disabled) โปรดตรวจสอบใน Firebase Console ว่าบัญชีของคุณไม่ได้ถูกปิดใช้งาน (Disable) หรือติดต่อผู้ดูแลระบบ');
+      } else if (err?.code === 'auth/unauthorized-domain') {
+        alert(`ข้อผิดพลาด (Unauthorized Domain): คุณต้องเพิ่มโดเมน "${window.location.hostname}" ในเมนู Authorized domains ของ Firebase Authentication (Settings > Authorized domains)`);
       } else {
         alert('การเข้าสู่ระบบล้มเหลว: ' + err.message);
       }
