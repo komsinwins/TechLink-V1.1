@@ -7,7 +7,6 @@ import {
 import { calculateDaysDiff, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
 import { uploadFileToDrive } from '../drive';
 import { getAccessToken } from '../firebase';
-import { exportDataToGoogleSheets } from '../sheets';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -65,6 +64,7 @@ export default function OnsiteServiceTab({
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [partnerCompany, setPartnerCompany] = useState('');
+  const [referenceDocument, setReferenceDocument] = useState('');
   const [serviceType, setServiceType] = useState('');
   const [productType, setProductType] = useState('');
   const [serviceLocation, setServiceLocation] = useState('');
@@ -113,6 +113,7 @@ export default function OnsiteServiceTab({
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
+    setReferenceDocument('');
     setServiceType('');
     setProductType('');
     setServiceLocation('');
@@ -147,6 +148,7 @@ export default function OnsiteServiceTab({
     setContactPhone(job.contactPhone || '');
     setContactEmail(job.contactEmail || '');
     setPartnerCompany(job.partnerCompany || '');
+    setReferenceDocument(job.referenceDocument || '');
     setServiceType(job.serviceType || '');
     setProductType(job.productType || '');
     setServiceLocation(job.serviceLocation || '');
@@ -292,6 +294,7 @@ export default function OnsiteServiceTab({
       contactPhone,
       contactEmail,
       partnerCompany,
+      referenceDocument,
       serviceType,
       productType,
       serviceLocation,
@@ -330,54 +333,10 @@ export default function OnsiteServiceTab({
   // CSV Import / Export
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportSheets = async () => {
-    setIsExporting(true);
-    try {
-      const headers = [
-        'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
-        'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
-        'ผู้ปฏิบัติงาน 1', 'ผู้ปฏิบัติงาน 2', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่เข้าปฏิบัติงาน', 
-        'วันที่แก้ไขเสร็จงาน', 'สถานะ', 'บรรยายรับแจ้งอาการ', 'ขั้นตอนการตรวจสอบ', 'สาเหตุ', 'การแก้ไข', 'หมายเหตุ'
-      ];
-      const dataRows = onsiteJobs.map(j => [
-        j.jobNo,
-        j.customerCompany,
-        j.customerAddress,
-        j.contactName,
-        j.contactDetail,
-        j.contactPhone,
-        j.contactEmail,
-        j.partnerCompany,
-        j.serviceType,
-        j.serviceLocation,
-        j.operator1,
-        j.operator2,
-        j.salesRep,
-        j.receivedDate,
-        j.startServiceDate,
-        j.resolutionDate,
-        j.status,
-        j.symptoms || '',
-        j.diagnosis || '',
-        j.cause || '',
-        j.actionTaken || '',
-        j.remarks || ''
-      ]);
-      const url = await exportDataToGoogleSheets('TechLink_Onsite_Service_Jobs', headers, dataRows);
-      alert(`ส่งออกข้อมูลสำเร็จ! เปิดดูได้ที่:\n${url}`);
-      window.open(url, '_blank');
-    } catch (err: any) {
-      console.error(err);
-      alert('เกิดข้อผิดพลาดในการส่งออกไปยัง Google Sheets: ' + err.message);
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   const handleExportCSV = () => {
     const headers = [
       'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
-      'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
+      'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'หมายเลขเอกสารอ้างอิง', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
       'ผู้ปฏิบัติงาน 1', 'ผู้ปฏิบัติงาน 2', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่เข้าปฏิบัติงาน', 
       'วันที่แก้ไขเสร็จงาน', 'สถานะ', 'บรรยายรับแจ้งอาการ', 'ขั้นตอนการตรวจสอบ', 'สาเหตุ', 'การแก้ไข', 'หมายเหตุ'
     ];
@@ -390,6 +349,7 @@ export default function OnsiteServiceTab({
       'เบอร์โทรผู้ติดต่อ': j.contactPhone,
       'อีเมลผู้ติดต่อ': j.contactEmail,
       'บริษัทคู่ค้า': j.partnerCompany,
+      'หมายเลขเอกสารอ้างอิง': j.referenceDocument || '',
       'ประเภทบริการ': j.serviceType,
       'สถานที่ปฏิบัติงาน': j.serviceLocation,
       'ผู้ปฏิบัติงาน 1': j.operator1,
@@ -559,16 +519,6 @@ export default function OnsiteServiceTab({
             ส่งออก CSV
           </button>
 
-          {/* Sheets Export */}
-          <button 
-            onClick={handleExportSheets}
-            disabled={isExporting}
-            className="flex items-center gap-1 px-2 py-1.5 bg-white border border-green-600 text-green-700 rounded text-[11px] font-bold hover:bg-green-50 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
-            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Sheets'}
-          </button>
-
           <button
             onClick={() => { resetForm(); setIsFormOpen(true); }}
             className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white rounded text-[11px] font-bold hover:bg-blue-700 transition-colors cursor-pointer"
@@ -633,8 +583,10 @@ export default function OnsiteServiceTab({
               ) : (
                 filteredJobs.map(job => {
                   const nowStr = new Date().toISOString().split('T')[0];
-                  const workDays = calculateDaysDiff(job.startServiceDate, job.resolutionDate);
-                  const resolutionDays = calculateDaysDiff(job.receivedDate, job.resolutionDate);
+                  const workDaysRaw = calculateDaysDiff(job.startServiceDate, job.resolutionDate);
+                  const workDays = workDaysRaw === 0 ? 1 : workDaysRaw;
+                  const resolutionDaysRaw = calculateDaysDiff(job.receivedDate, job.resolutionDate);
+                  const resolutionDays = resolutionDaysRaw === 0 ? 1 : resolutionDaysRaw;
                   const daysSinceReceived = calculateDaysDiff(job.receivedDate, nowStr) || 0;
                   
                   // Check if overdue > 15 days
@@ -895,6 +847,16 @@ export default function OnsiteServiceTab({
                 <div className="space-y-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
                   <h4 className="font-bold text-xs text-gray-900 border-b border-gray-200 pb-1">การมอบหมายงาน</h4>
                   <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">หมายเลขเอกสารอ้างอิง (ถ้ามี)</label>
+                    <input
+                      type="text"
+                      value={referenceDocument}
+                      onChange={(e) => setReferenceDocument(e.target.value)}
+                      placeholder="เช่น PO, PR..."
+                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">บริษัทคู่ค้า (ถ้ามี)</label>
                     <input
                       type="text"
@@ -1054,7 +1016,7 @@ export default function OnsiteServiceTab({
                 <div className="space-y-3">
                   <h4 className="font-bold text-xs text-gray-900 border-b border-gray-200 pb-1">รายละเอียดอาการและการตรวจสอบ</h4>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">รับแจ้งอาการ</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">อาการที่ได้รับแจ้ง / ปัญหาที่พบ</label>
                     <textarea
                       value={symptoms}
                       onChange={(e) => setSymptoms(e.target.value)}
@@ -1064,7 +1026,7 @@ export default function OnsiteServiceTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ขั้นตอนการตรวจสอบ</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">รายละเอียดการดำเนินงาน</label>
                     <textarea
                       value={diagnosis}
                       onChange={(e) => setDiagnosis(e.target.value)}
@@ -1074,7 +1036,7 @@ export default function OnsiteServiceTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">สาเหตุ</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">สาเหตุของปัญหา</label>
                     <textarea
                       value={cause}
                       onChange={(e) => setCause(e.target.value)}
@@ -1088,7 +1050,7 @@ export default function OnsiteServiceTab({
                 <div className="space-y-3">
                   <h4 className="font-bold text-xs text-gray-900 border-b border-gray-200 pb-1">การแก้ไขและหมายเหตุประกอบ</h4>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">การแก้ไข</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">การแก้ไขปัญหา</label>
                     <textarea
                       value={actionTaken}
                       onChange={(e) => setActionTaken(e.target.value)}
@@ -1231,21 +1193,21 @@ export default function OnsiteServiceTab({
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col my-8 max-h-[90vh]">
             <div className="bg-blue-700 text-white p-4 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
-              <span className="text-sm">พิมพ์ / ส่งออกเอกสารใบงาน (Job Service)</span>
+              <span className="text-sm">พิมพ์ / ส่งออกเอกสารใบงาน</span>
               <div className="flex bg-blue-800/80 p-0.5 rounded-lg border border-blue-600 text-xs shrink-0">
                 <button
                   type="button"
                   onClick={() => setReportViewMode('full')}
                   className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${reportViewMode === 'full' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white'}`}
                 >
-                  ใบงานฉบับเต็ม (Full Job)
+                  รายงานสรุปการบริการ
                 </button>
                 <button
                   type="button"
                   onClick={() => setReportViewMode('simple')}
                   className={`px-3 py-1 rounded font-bold transition-all cursor-pointer ${reportViewMode === 'simple' ? 'bg-white text-blue-900 shadow-sm' : 'text-blue-100 hover:text-white'}`}
                 >
-                  รายงานสรุปลูกค้า (Customer Summary)
+                  ใบงาน
                 </button>
               </div>
               <button onClick={() => setExportTargetJob(null)} className="text-white hover:text-white/80 text-xl font-bold">&times;</button>
@@ -1265,8 +1227,8 @@ export default function OnsiteServiceTab({
                     {/* Header layout according to prompt */}
                     <div className="border-b-2 border-blue-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                       <div>
-                        <h1 className="text-lg font-extrabold text-blue-900">ใบงาน (Job Service)</h1>
-                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุงเครือข่าย</p>
+                        <h1 className="text-lg font-extrabold text-blue-900">รายงานสรุปการบริการ</h1>
+                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุง</p>
                         <p className="text-gray-500 text-[10px] mt-1">Email: <span className="font-semibold text-blue-700">wssservice.wins@gmail.com</span> | เบอร์โทรติดต่อ: <span className="font-semibold text-blue-700">085 502 9624</span></p>
                       </div>
                       <div className="text-right">
@@ -1310,6 +1272,10 @@ export default function OnsiteServiceTab({
                         <div className="text-gray-400 font-bold uppercase text-[9px]">บริษัทคู่ค้า</div>
                         <div className="font-semibold">{exportTargetJob.partnerCompany || 'ไม่มี'}</div>
                       </div>
+                      <div>
+                        <div className="text-gray-400 font-bold uppercase text-[9px]">หมายเลขเอกสารอ้างอิง</div>
+                        <div className="font-semibold">{exportTargetJob.referenceDocument || '-'}</div>
+                      </div>
                     </div>
 
                     {/* Diagnostic descriptions */}
@@ -1337,28 +1303,14 @@ export default function OnsiteServiceTab({
                         </div>
                       )}
                     </div>
-
-                    {/* SIGNATURE SECTION AS REQUESTED */}
-                    <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
-                      <div className="space-y-12">
-                        <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
-                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
-                      </div>
-                      <div className="space-y-12">
-                        <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
-                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
-                        <div className="text-gray-500 text-[11px]">(........................................................)</div>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     {/* Simple summary view for customer reporting */}
                     <div className="border-b-2 border-emerald-600 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                       <div>
-                        <h1 className="text-lg font-extrabold text-emerald-950">รายงานสรุปผลการทำงาน (Job Summary Report)</h1>
-                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนและบริการด้านเทคนิค</p>
+                        <h1 className="text-lg font-extrabold text-emerald-950">ใบงาน</h1>
+                        <p className="text-gray-600 font-bold mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุง</p>
                         <p className="text-gray-500 text-[10px] mt-1">Email: <span className="font-semibold text-emerald-700">wssservice.wins@gmail.com</span> | เบอร์โทรติดต่อ: <span className="font-semibold text-emerald-700">085 502 9624</span></p>
                       </div>
                       <div className="text-right">
@@ -1397,25 +1349,30 @@ export default function OnsiteServiceTab({
                     {/* Descriptive sections for Customer report */}
                     <div className="space-y-4">
                       <div>
-                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">อาการที่ได้รับแจ้ง / ปัญหาที่พบบนระบบ (Reported Symptoms / Issues):</h3>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">อาการที่ได้รับแจ้ง / ปัญหาที่พบ:</h3>
                         <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.symptoms || '-'}</p>
+                      </div>
+
+                      <div>
+                        <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">รายละเอียดการดำเนินงาน:</h3>
+                        <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.diagnosis || '-'}</p>
                       </div>
 
                       {exportTargetJob.cause && (
                         <div>
-                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุหลักของปัญหา (Root Cause of Issue):</h3>
+                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">สาเหตุของปัญหา:</h3>
                           <p className="mt-1 text-gray-700 whitespace-pre-wrap pl-1">{exportTargetJob.cause}</p>
                         </div>
                       )}
 
                       <div>
-                        <h3 className="font-bold text-gray-900 border-b border-emerald-100 pb-1 text-[11px] text-emerald-950">รายละเอียดการดำเนินงาน / การแก้ไขปัญหา (Action Taken / Resolution):</h3>
+                        <h3 className="font-bold text-emerald-950 border-b border-emerald-100 pb-1 text-[11px]">การแก้ไขปัญหา:</h3>
                         <p className="mt-1.5 text-gray-700 whitespace-pre-wrap pl-2 pr-1 font-medium bg-emerald-50/10 py-2.5 rounded border border-emerald-100/30">{exportTargetJob.actionTaken || '-'}</p>
                       </div>
 
                       {exportTargetJob.remarks && (
                         <div>
-                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">หมายเหตุเพิ่มเติม (Remarks / Recommendations):</h3>
+                          <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-1 text-[11px]">หมายเหตุ:</h3>
                           <p className="mt-1 text-gray-600 whitespace-pre-wrap pl-1">{exportTargetJob.remarks}</p>
                         </div>
                       )}

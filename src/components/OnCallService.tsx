@@ -411,6 +411,7 @@ export default function OnCallServiceTab({
           <table className="min-w-full divide-y divide-slate-200 text-xs">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('jobNo')}>เลขที่ใบงาน {sortConfig.key === 'jobNo' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('customerCompany')}>ลูกค้า / ผู้ติดต่อ {sortConfig.key === 'customerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">เบอร์โทร / อีเมล</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('productType')}>คู่ค้า / บริการที่ขอ {sortConfig.key === 'productType' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
@@ -425,14 +426,15 @@ export default function OnCallServiceTab({
             <tbody className="divide-y divide-slate-150">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-gray-500 text-sm">
+                  <td colSpan={10} className="py-10 text-center text-gray-500 text-sm">
                     ไม่พบข้อมูลงาน OnCall ในระบบ
                   </td>
                 </tr>
               ) : (
                 filteredJobs.map(job => {
                   const nowStr = new Date().toISOString().split('T')[0];
-                  const resDiff = calculateDaysDiff(job.receivedDate, job.resolutionDate);
+                  const resDiffRaw = calculateDaysDiff(job.receivedDate, job.resolutionDate);
+                  const resDiff = resDiffRaw === 0 ? 1 : resDiffRaw;
                   const daysSinceRec = calculateDaysDiff(job.receivedDate, nowStr) || 0;
                   
                   // SLA breach flag > 7 days
@@ -440,13 +442,15 @@ export default function OnCallServiceTab({
 
                   return (
                     <tr key={job.id} className={`hover:bg-blue-50/20 text-xs transition-colors ${isSlaBreached ? 'bg-amber-50/20' : ''}`}>
+                      <td className="py-1.5 px-2.5">
+                        <div className="text-[10px] text-blue-600 font-bold">{job.jobNo || '-'}</div>
+                      </td>
                       {/* Customer Name */}
                       <td className="py-1.5 px-2.5">
                         <div className="flex items-center gap-1">
                           {isSlaBreached && <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" title="งานค้างเกิน 7 วัน!" />}
                           <div className="font-bold text-slate-900">{job.customerCompany}</div>
                         </div>
-                        {job.jobNo && <div className="text-[10px] text-blue-600 font-bold mt-0.2">{job.jobNo}</div>}
                         <div className="text-[10px] text-slate-500 mt-0.2">{job.contactName} {job.contactDetail ? `(${job.contactDetail})` : ''}</div>
                       </td>
 

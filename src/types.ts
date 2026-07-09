@@ -35,6 +35,7 @@ export interface OnsiteService {
   contactPhone: string;
   contactEmail: string;
   partnerCompany: string;
+  referenceDocument?: string;
   serviceType: string;
   serviceLocation: string;
   operator1: string;
@@ -102,8 +103,10 @@ export interface ProductClaim {
   claimSentDate: string; // YYYY-MM-DD
   inspector: string;
   claimStatus: 'Claiming' | 'Replaced' | 'Repaired' | 'Returned';
-  receivedPhoto: string; // Base64
-  returnedPhoto: string; // Base64
+  receivedPhoto: string; // Base64 or Drive URL
+  returnedPhoto: string; // Base64 or Drive URL
+  claimReportUrl?: string; // Drive URL
+  claimReportName?: string;
   remarks: string;
   createdAt?: number;
 }

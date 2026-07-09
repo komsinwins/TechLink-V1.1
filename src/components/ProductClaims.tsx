@@ -76,12 +76,13 @@ export default function ProductClaimsTab({
   const [claimStatus, setClaimStatus] = useState<'Claiming' | 'Replaced' | 'Repaired' | 'Returned'>('Claiming');
   const [receivedPhoto, setReceivedPhoto] = useState('');
   const [returnedPhoto, setReturnedPhoto] = useState('');
+  const [claimReportUrl, setClaimReportUrl] = useState('');
+  const [claimReportName, setClaimReportName] = useState('');
   const [remarks, setRemarks] = useState('');
-
-
 
   const receivedPhotoInputRef = useRef<HTMLInputElement>(null);
   const returnedPhotoInputRef = useRef<HTMLInputElement>(null);
+  const claimReportInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (selectedClaimForView) {
@@ -114,6 +115,8 @@ export default function ProductClaimsTab({
     setClaimStatus('Claiming');
     setReceivedPhoto('');
     setReturnedPhoto('');
+    setClaimReportUrl('');
+    setClaimReportName('');
     setRemarks('');
     setCustomerSearchQuery('');
     setIsFormOpen(false);
@@ -142,6 +145,8 @@ export default function ProductClaimsTab({
     setClaimStatus(claim.claimStatus || 'Claiming');
     setReceivedPhoto(claim.receivedPhoto || '');
     setReturnedPhoto(claim.returnedPhoto || '');
+    setClaimReportUrl(claim.claimReportUrl || '');
+    setClaimReportName(claim.claimReportName || '');
     setRemarks(claim.remarks || '');
     setIsFormOpen(true);
   };
@@ -170,11 +175,12 @@ export default function ProductClaimsTab({
 
     // Determine Claim No to use as file name
     const resolvedClaimNo = editingId ? (claims.find(c => c.id === editingId)?.claimNo || generateClaimNo()) : generateClaimNo();
-    const fileName = `${resolvedClaimNo}_${ref === 'received' ? 'Received' : 'Returned'}_${file.name}`;
+    const ext = file.name.split('.').pop();
+    const fileName = `${resolvedClaimNo.replace(/\//g, '_')}_${ref === 'received' ? '1' : '2'}.${ext}`;
 
     setIsUploading(true);
     try {
-      const result = await uploadFileToDrive(file, fileName, 'TechLink_Claim Product', token);
+      const result = await uploadFileToDrive(file, fileName, 'รูปเคลมสินค้า', token);
       const url = result.thumbnailLink || result.webContentLink || result.webViewLink || result.fileId;
       if (ref === 'received') {
         setReceivedPhoto(url);
@@ -183,7 +189,43 @@ export default function ProductClaimsTab({
       }
     } catch (err: any) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + err.message);
+      if (err.message && err.message.includes('403')) {
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ (403 Forbidden)\n\nโปรดตรวจสอบว่าตอนที่เข้าสู่ระบบ คุณได้ "ติ๊กถูก" อนุญาตสิทธิ์การเข้าถึง Google Drive หรือไม่\nกรุณากด "ออกจากระบบ" แล้วเข้าสู่ระบบใหม่อีกครั้ง และติ๊กอนุญาตสิทธิ์ทั้งหมด');
+      } else {
+        alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + err.message);
+      }
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleReportUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = await getAccessToken();
+    if (!token) {
+      alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive');
+      return;
+    }
+
+    const resolvedClaimNo = editingId ? (claims.find(c => c.id === editingId)?.claimNo || generateClaimNo()) : generateClaimNo();
+    const ext = file.name.split('.').pop();
+    const fileName = `${resolvedClaimNo.replace(/\//g, '_')}_1.${ext}`;
+
+    setIsUploading(true);
+    try {
+      const result = await uploadFileToDrive(file, fileName, 'รายงานสินค้าเคลมสินค้า', token);
+      setClaimReportUrl(result.webViewLink || result.fileId);
+      setClaimReportName(file.name);
+    } catch (err: any) {
+      console.error(err);
+      if (err.message && err.message.includes('403')) {
+        alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์รายงาน (403 Forbidden)\n\nโปรดตรวจสอบว่าตอนที่เข้าสู่ระบบ คุณได้ "ติ๊กถูก" อนุญาตสิทธิ์การเข้าถึง Google Drive หรือไม่\nกรุณากด "ออกจากระบบ" แล้วเข้าสู่ระบบใหม่อีกครั้ง และติ๊กอนุญาตสิทธิ์ทั้งหมด');
+      } else {
+        alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์รายงาน: ' + err.message);
+      }
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -239,6 +281,8 @@ export default function ProductClaimsTab({
       claimStatus,
       receivedPhoto,
       returnedPhoto,
+      claimReportUrl,
+      claimReportName,
       remarks
     };
 
@@ -528,6 +572,7 @@ export default function ProductClaimsTab({
           <table className="min-w-full divide-y divide-slate-250 text-xs animate-fade-in">
             <thead className="bg-slate-50/70">
               <tr className="text-left text-slate-500 font-black text-[10px] uppercase tracking-wider">
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimNo')}>เลขที่ใบงาน {sortConfig.key === 'claimNo' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('customerCompany')}>ลูกค้า / ผู้ติดต่อ {sortConfig.key === 'customerCompany' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('model')}>สินค้าหลัก / รุ่น {sortConfig.key === 'model' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('serialNumber')}>ซีเรียลนัมเบอร์ {sortConfig.key === 'serialNumber' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
@@ -535,7 +580,7 @@ export default function ProductClaimsTab({
                 <th className="py-2 px-2.5">ประกันที่เหลืออยู่</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimDestination')}>สถานที่ส่ง / อาคาร {sortConfig.key === 'claimDestination' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimReceivedDate')}>วันที่รับ / ส่งเคลม {sortConfig.key === 'claimReceivedDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
-                <th className="py-2 px-2.5">รูปถ่าย</th>
+                <th className="py-2 px-2.5">เอกสาร/รูปถ่าย</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimStatus')}>สถานะเคลม {sortConfig.key === 'claimStatus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 text-right">จัดการ</th>
               </tr>
@@ -543,7 +588,7 @@ export default function ProductClaimsTab({
             <tbody className="divide-y divide-slate-155">
               {filteredClaims.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center text-gray-500 text-sm">
+                  <td colSpan={11} className="py-10 text-center text-gray-500 text-sm">
                     ไม่พบรายการสินค้าเคลมในระบบ
                   </td>
                 </tr>
@@ -556,6 +601,9 @@ export default function ProductClaimsTab({
 
                   return (
                     <tr key={claim.id} className={`hover:bg-blue-50/20 text-xs transition-colors ${isClaimOverdue ? 'bg-purple-50/20' : ''}`}>
+                      <td className="py-1.5 px-2.5">
+                        <div className="text-[10px] text-blue-600 font-bold">{claim.claimNo || '-'}</div>
+                      </td>
                       {/* Customer Company info */}
                       <td className="py-1.5 px-2.5">
                         <div className="flex items-center gap-1">
@@ -612,6 +660,9 @@ export default function ProductClaimsTab({
                           )}
                           {claim.returnedPhoto && (
                             <span className="w-4 h-4 rounded bg-emerald-100 text-emerald-700 font-black flex items-center justify-center text-[8px] border border-emerald-200" title="มีภาพส่งคืน">คืน</span>
+                          )}
+                          {claim.claimReportUrl && (
+                            <span className="w-4 h-4 rounded bg-purple-100 text-purple-700 font-black flex items-center justify-center text-[8px] border border-purple-200" title="มีเอกสารรายงานเคลม">ร/ง</span>
                           )}
                         </div>
                       </td>
@@ -1030,6 +1081,49 @@ export default function ProductClaimsTab({
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Claim Report Upload */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex items-start gap-2.5">
+                  <FileText className="text-purple-600 w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">เอกสารรายงานสินค้าเคลม (ถ้ามี)</h4>
+                    <p className="text-[10px] text-gray-500">อัปโหลดรายงานผลการเคลมจากผู้จำหน่าย (PDF/ไฟล์อื่นๆ)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  {claimReportUrl && (
+                    <div className="text-[10px] text-purple-700 bg-purple-50 border border-purple-100 rounded px-2.5 py-1 flex items-center gap-1 font-bold truncate max-w-[150px]">
+                      <Check className="w-3 h-3" /> แนบไฟล์แล้ว
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => claimReportInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex-1 sm:flex-none justify-center px-4 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-[11px] font-bold hover:bg-gray-50 transition-colors flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Upload className="w-3 h-3" />
+                    {isUploading ? 'กำลังอัปโหลด...' : (claimReportUrl ? 'อัปโหลดไฟล์ใหม่' : 'เลือกไฟล์แนบ')}
+                  </button>
+                  {claimReportUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setClaimReportUrl(''); setClaimReportName(''); }}
+                      className="px-2 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded hover:bg-red-100 transition-colors"
+                      title="ลบไฟล์แนบ"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={claimReportInputRef}
+                  onChange={handleReportUpload}
+                  className="hidden"
+                />
               </div>
 
               {/* Remarks area */}
