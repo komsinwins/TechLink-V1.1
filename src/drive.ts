@@ -56,27 +56,42 @@ export async function uploadFileToDrive(
     parents: [folderId],
   };
 
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', file);
+  const boundary = '-------314159265358979323846';
+  const delimiter = "\r\n--" + boundary + "\r\n";
+  const close_delim = "\r\n--" + boundary + "--";
+
+  const metadataBlob = new Blob([
+    delimiter,
+    'Content-Type: application/json\r\n\r\n',
+    JSON.stringify(metadata),
+    delimiter,
+    'Content-Type: ' + (file.type || 'application/octet-stream') + '\r\n\r\n'
+  ], { type: 'text/plain' });
+
+  const closeBlob = new Blob([close_delim], { type: 'text/plain' });
+
+  const body = new Blob([metadataBlob, file, closeBlob]);
 
   const uploadRes = await fetch(DRIVE_UPLOAD_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'Content-Type': `multipart/related; boundary=${boundary}`
     },
-    body: form,
+    body: body,
   });
 
   if (!uploadRes.ok) {
-    throw new Error(`Failed to upload file: ${uploadRes.statusText}`);
+    const errorText = await uploadRes.text();
+    throw new Error(`Failed to upload file content: ${uploadRes.status} ${uploadRes.statusText} - ${errorText}`);
   }
-
-  const uploadData = await uploadRes.json();
+  
+  const fileData = await uploadRes.json();
+  const fileId = fileData.id;
   
   try {
     // Make the file publicly accessible so images can be displayed
-    await fetch(`${DRIVE_API_URL}/${uploadData.id}/permissions`, {
+    await fetch(`${DRIVE_API_URL}/${fileId}/permissions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -92,7 +107,7 @@ export async function uploadFileToDrive(
   }
 
   // Get the webViewLink
-  const getRes = await fetch(`${DRIVE_API_URL}/${uploadData.id}?fields=id,webViewLink,webContentLink,thumbnailLink`, {
+  const getRes = await fetch(`${DRIVE_API_URL}/${fileId}?fields=id,webViewLink,webContentLink,thumbnailLink`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -100,7 +115,7 @@ export async function uploadFileToDrive(
   });
 
   if (!getRes.ok) {
-    return { fileId: uploadData.id, webViewLink: '' };
+    return { fileId: fileId, webViewLink: '' };
   }
 
   const getData = await getRes.json();
