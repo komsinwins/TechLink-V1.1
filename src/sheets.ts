@@ -1,6 +1,6 @@
 import { getAccessToken } from './firebase';
 
-const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
+const SHEETS_API_URL = 'https://workspace-proxy.aistudio.dev/v4/spreadsheets';
 
 export async function exportDataToGoogleSheets(
   title: string,

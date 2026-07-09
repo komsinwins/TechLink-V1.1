@@ -1,7 +1,7 @@
 import { getAccessToken } from './firebase';
 
-const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3/files';
-const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+const DRIVE_API_URL = 'https://workspace-proxy.aistudio.dev/drive/v3/files';
+const DRIVE_UPLOAD_URL = 'https://workspace-proxy.aistudio.dev/upload/drive/v3/files?uploadType=multipart';
 
 export async function getOrCreateFolder(folderName: string, accessToken: string): Promise<string> {
   // Search for the folder
