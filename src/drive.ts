@@ -14,7 +14,11 @@ export async function getOrCreateFolder(folderName: string, accessToken: string)
   });
 
   if (!searchRes.ok) {
-    throw new Error(`Failed to search for folder: ${searchRes.statusText}`);
+    let errorText = '';
+    try {
+      errorText = await searchRes.text();
+    } catch (e) {}
+    throw new Error(`Failed to search for folder: ${searchRes.status} ${searchRes.statusText} - ${errorText}`);
   }
 
   const data = await searchRes.json();
