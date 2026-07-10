@@ -58,6 +58,9 @@ export interface OnsiteService {
   signedReportFileId?: string; // Google Drive file ID
   operatorSignature?: string; // Base64 drawing
   customerSignature?: string; // Base64 drawing
+  jobSheetUrl?: string; // URL for the uploaded job sheet file
+  jobSheetName?: string; // Name of the uploaded job sheet file
+  jobSheetFileId?: string; // Google Drive file ID for the job sheet
   createdAt?: number;
 }
 

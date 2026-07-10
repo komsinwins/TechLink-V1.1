@@ -145,6 +145,9 @@ export default function OnsiteServiceTab({
   const [signedReportUrl, setSignedReportUrl] = useState('');
   const [signedReportName, setSignedReportName] = useState('');
   const [signedReportFileId, setSignedReportFileId] = useState('');
+  const [jobSheetUrl, setJobSheetUrl] = useState('');
+  const [jobSheetName, setJobSheetName] = useState('');
+  const [jobSheetFileId, setJobSheetFileId] = useState('');
   const [operatorSignature, setOperatorSignature] = useState('');
   const [customerSignature, setCustomerSignature] = useState('');
 
@@ -158,6 +161,7 @@ export default function OnsiteServiceTab({
   // Refs for files
   const photoInputRef = useRef<HTMLInputElement>(null);
   const reportInputRef = useRef<HTMLInputElement>(null);
+  const jobSheetInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     if (selectedOnsiteForView) {
@@ -197,6 +201,9 @@ export default function OnsiteServiceTab({
     setSignedReportUrl('');
     setSignedReportName('');
     setSignedReportFileId('');
+    setJobSheetUrl('');
+    setJobSheetName('');
+    setJobSheetFileId('');
     setOperatorSignature('');
     setCustomerSignature('');
     setCustomerSearchQuery('');
@@ -233,6 +240,9 @@ export default function OnsiteServiceTab({
     setSignedReportUrl(job.signedReportUrl || '');
     setSignedReportName(job.signedReportName || '');
     setSignedReportFileId(job.signedReportFileId || '');
+    setJobSheetUrl(job.jobSheetUrl || '');
+    setJobSheetName(job.jobSheetName || '');
+    setJobSheetFileId(job.jobSheetFileId || '');
     setOperatorSignature(job.operatorSignature || '');
     setCustomerSignature(job.customerSignature || '');
     setIsFormOpen(true);
@@ -336,6 +346,36 @@ export default function OnsiteServiceTab({
     }
   };
 
+  const handleJobSheetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = await getAccessToken();
+    if (!token) {
+      alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive (เซสชันอาจหมดอายุจากการรีเฟรชหน้าเว็บ) \n\nกรุณากด "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง และอย่าลืมติ๊กถูกอนุญาตสิทธิ์ Google Drive ในหน้าต่างเข้าสู่ระบบ');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const resolvedJobNo = editingId ? (onsiteJobs.find(j => j.id === editingId)?.jobNo || generateJobNo()) : generateJobNo();
+      const jobNoClean = resolvedJobNo.replace(/\//g, '_');
+      const ext = file.name.split('.').pop();
+      const fileName = `${jobNoClean}_JobSheet.${ext}`;
+
+      const result = await uploadFileToDrive(file, fileName, 'ใบงาน', token);
+      setJobSheetUrl(result.webContentLink || result.webViewLink || result.fileId);
+      setJobSheetName(fileName);
+      setJobSheetFileId(result.fileId);
+    } catch (err: any) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดเอกสารใบงาน: ' + err.message);
+    } finally {
+      setIsUploading(false);
+      if (jobSheetInputRef.current) jobSheetInputRef.current.value = '';
+    }
+  };
+
   const generateJobNo = (): string => {
     const currentYear = new Date().getFullYear();
     const shortYear = String(currentYear).substring(2);
@@ -392,6 +432,9 @@ export default function OnsiteServiceTab({
       signedReportUrl,
       signedReportName,
       signedReportFileId,
+      jobSheetUrl,
+      jobSheetName,
+      jobSheetFileId,
       operatorSignature,
       customerSignature
     };
@@ -764,15 +807,23 @@ export default function OnsiteServiceTab({
                         <div>แก้: <span className="text-indigo-700">{resolutionDays !== null ? `${resolutionDays} วัน` : '-'}</span></div>
                       </td>
 
-                      {/* Signed Report Indicator */}
-                      <td className="py-1.5 px-2.5">
+                      {/* Signed Report & Job Sheet Indicator */}
+                      <td className="py-1.5 px-2.5 space-y-1">
                         {job.signedReportUrl ? (
                           <a href={job.signedReportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-emerald-600 font-bold text-[10px] hover:underline" title={job.signedReportName}>
                             <Paperclip className="w-3 h-3" />
-                            <span>เปิด / ดาวน์โหลด</span>
+                            <span>รายงานการตรวจสอบ</span>
                           </a>
                         ) : (
-                          <span className="text-slate-400 italic text-[10px]">ไม่มีรายงานเซ็นกลับ</span>
+                          <span className="text-slate-400 italic text-[10px] block">ไม่มีรายงานเซ็นกลับ</span>
+                        )}
+                        {job.jobSheetUrl ? (
+                          <a href={job.jobSheetUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 font-bold text-[10px] hover:underline" title={job.jobSheetName}>
+                            <Paperclip className="w-3 h-3" />
+                            <span>ใบงาน (Google Drive)</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 italic text-[10px] block">ไม่มีไฟล์ใบงาน</span>
                         )}
                       </td>
 
@@ -1326,8 +1377,8 @@ export default function OnsiteServiceTab({
                 <div className="flex items-start gap-2.5">
                   <FileText className="text-emerald-600 w-5 h-5 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-xs text-gray-900">แนบไฟล์ใบงานรายงานการตรวจเช็คที่ลูกค้าลงชื่อแล้ว</h4>
-                    <p className="text-[10px] text-gray-500">อัปโหลดรูปภาพหรือ PDF ใบงานที่ลูกค้าลงลายมือชื่อ เพื่อบันทึกเก็บเป็นประวัติการปฏิบัติงานที่ Firebase</p>
+                    <h4 className="font-bold text-xs text-gray-900">แนบไฟล์ใบงานรายงานการตรวจสอบ</h4>
+                    <p className="text-[10px] text-gray-500">อัปโหลดรูปภาพหรือ PDF รายงานการตรวจสอบ เพื่อบันทึกเก็บเป็นประวัติการปฏิบัติงานที่ Firebase</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
@@ -1343,13 +1394,47 @@ export default function OnsiteServiceTab({
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer"
                   >
                     <Paperclip className="w-4 h-4 text-blue-600" />
-                    {signedReportUrl ? 'เปลี่ยนไฟล์' : 'แนบไฟล์ใบงานเซ็นแล้ว'}
+                    {signedReportUrl ? 'เปลี่ยนไฟล์' : 'แนบไฟล์รายงานการตรวจสอบ'}
                   </button>
                   <input
                     type="file"
                     ref={reportInputRef}
                     accept="image/*,application/pdf,.pdf"
                     onChange={handleReportUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Job Sheet File Upload area */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div className="flex items-start gap-2.5">
+                  <FileText className="text-blue-600 w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">แนบไฟล์ใบงาน</h4>
+                    <p className="text-[10px] text-gray-500">อัปโหลดรูปภาพหรือ PDF ใบงานปฏิบัติงาน เพื่อจัดเก็บใน Google Drive โฟลเดอร์ชื่อ "ใบงาน"</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  {jobSheetUrl && (
+                    <div className="text-[10px] text-blue-700 bg-blue-50 border border-blue-100 rounded px-2.5 py-1 flex items-center gap-1 font-bold">
+                      <Check className="w-3.5 h-3.5" />
+                      <a href={jobSheetUrl} target="_blank" rel="noopener noreferrer" className="truncate max-w-[150px] hover:underline cursor-pointer">{jobSheetName || 'เปิดไฟล์'}</a>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => jobSheetInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer"
+                  >
+                    <Paperclip className="w-4 h-4 text-blue-600" />
+                    {jobSheetUrl ? 'เปลี่ยนไฟล์' : 'แนบไฟล์ใบงาน'}
+                  </button>
+                  <input
+                    type="file"
+                    ref={jobSheetInputRef}
+                    accept="image/*,application/pdf,.pdf"
+                    onChange={handleJobSheetUpload}
                     className="hidden"
                   />
                 </div>
