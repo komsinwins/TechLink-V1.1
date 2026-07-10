@@ -329,6 +329,37 @@ export default function OnCallServiceTab({
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
   );
 
+  const getAvailableContacts = () => {
+    if (!customerCompany) return [];
+    const selectedCustomerObj = customers.find(c => c.companyName === customerCompany);
+    if (!selectedCustomerObj) return [];
+    
+    const list = [];
+    if (selectedCustomerObj.contactName) {
+      list.push({
+        name: selectedCustomerObj.contactName,
+        detail: selectedCustomerObj.contactDetail || '',
+        phone: selectedCustomerObj.contactPhone || '',
+        email: selectedCustomerObj.contactEmail || ''
+      });
+    }
+    if (selectedCustomerObj.contacts && selectedCustomerObj.contacts.length > 0) {
+      selectedCustomerObj.contacts.forEach(c => {
+        if (c.name && !list.some(item => item.name === c.name)) {
+          list.push({
+            name: c.name,
+            detail: c.detail || '',
+            phone: c.phone || '',
+            email: c.email || ''
+          });
+        }
+      });
+    }
+    return list;
+  };
+
+  const availableContacts = getAvailableContacts();
+
   return (
     <div className="space-y-3" id="oncall-tab">
       {/* Header Bar */}
@@ -626,14 +657,51 @@ export default function OnCallServiceTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อ-นามสกุลผู้ติดต่อ</label>
-                    <input
-                      type="text"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      placeholder="ผู้ติดต่อหลัก"
-                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
-                    />
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">
+                      ชื่อ-นามสกุลผู้ติดต่อ {availableContacts.length > 0 && <span className="text-blue-600 font-normal ml-1">(สามารถเลือกจากฐานข้อมูลได้)</span>}
+                    </label>
+                    {availableContacts.length > 0 ? (
+                      <div className="flex gap-1.5">
+                        <select
+                          value={availableContacts.some(ac => ac.name === contactName) ? contactName : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const match = availableContacts.find(ac => ac.name === val);
+                              if (match) {
+                                setContactName(match.name);
+                                setContactDetail(match.detail);
+                                setContactPhone(match.phone);
+                                setContactEmail(match.email);
+                              }
+                            }
+                          }}
+                          className="text-xs px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[150px] sm:max-w-[200px]"
+                        >
+                          <option value="">-- เลือกผู้ติดต่อ --</option>
+                          {availableContacts.map((ac, idx) => (
+                            <option key={idx} value={ac.name}>
+                              {ac.name} {ac.detail ? `(${ac.detail})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          placeholder="หรือพิมพ์ชื่อผู้ติดต่อ..."
+                          className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        placeholder="ผู้ติดต่อหลัก"
+                        className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">รายละเอียดผู้ติดต่อ (ถ้ามี)</label>

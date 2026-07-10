@@ -1,14 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { OnsiteService, Customer, ServicePhoto } from '../types';
 import { 
   Search, Plus, Trash2, Edit3, Eye, FileText, Download, Upload, AlertCircle, 
-  Calendar, Check, User, Info, FileSpreadsheet, Paperclip, CheckSquare, Image as ImageIcon, X
+  Calendar, Check, User, Info, FileSpreadsheet, Paperclip, CheckSquare, Image as ImageIcon, X,
+  PenTool
 } from 'lucide-react';
-import { calculateDaysDiff, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
+import { calculateDaysDiff, exportToCSV, parseCSV, exportToWord, exportToExcelTable, convertDriveUrlToBase64, withColorCleanedComputedStyle } from '../utils';
 import { uploadFileToDrive } from '../drive';
 import { getAccessToken } from '../firebase';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { SignaturePad } from './SignaturePad';
 
 interface OnsiteServiceProps {
   onsiteJobs: OnsiteService[];
@@ -52,6 +54,64 @@ export default function OnsiteServiceTab({
   const [exportTargetJob, setExportTargetJob] = useState<OnsiteService | null>(null);
   const [reportViewMode, setReportViewMode] = useState<'full' | 'simple'>('full');
 
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [processedPhotos, setProcessedPhotos] = useState<ServicePhoto[]>([]);
+  const [processedOperatorSig, setProcessedOperatorSig] = useState('');
+  const [processedCustomerSig, setProcessedCustomerSig] = useState('');
+
+  useEffect(() => {
+    if (!exportTargetJob) {
+      setProcessedPhotos([]);
+      setProcessedOperatorSig('');
+      setProcessedCustomerSig('');
+      return;
+    }
+
+    const processImages = async () => {
+      setIsProcessingImages(true);
+      try {
+        const token = await getAccessToken();
+        
+        // 1. Process Photos
+        if (exportTargetJob.photos && exportTargetJob.photos.length > 0) {
+          const promises = exportTargetJob.photos.map(async (photo) => {
+            if (photo.url) {
+              const base64Url = await convertDriveUrlToBase64(photo.url, token);
+              return { ...photo, url: base64Url };
+            }
+            return photo;
+          });
+          const results = await Promise.all(promises);
+          setProcessedPhotos(results);
+        } else {
+          setProcessedPhotos([]);
+        }
+
+        // 2. Process Operator Signature
+        if (exportTargetJob.operatorSignature) {
+          const sigBase64 = await convertDriveUrlToBase64(exportTargetJob.operatorSignature, token);
+          setProcessedOperatorSig(sigBase64);
+        } else {
+          setProcessedOperatorSig('');
+        }
+
+        // 3. Process Customer Signature
+        if (exportTargetJob.customerSignature) {
+          const sigBase64 = await convertDriveUrlToBase64(exportTargetJob.customerSignature, token);
+          setProcessedCustomerSig(sigBase64);
+        } else {
+          setProcessedCustomerSig('');
+        }
+      } catch (err) {
+        console.error('Error pre-processing image URLs:', err);
+      } finally {
+        setIsProcessingImages(false);
+      }
+    };
+
+    processImages();
+  }, [exportTargetJob]);
+
   // Search customer query for auto-fill
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -85,6 +145,8 @@ export default function OnsiteServiceTab({
   const [signedReportUrl, setSignedReportUrl] = useState('');
   const [signedReportName, setSignedReportName] = useState('');
   const [signedReportFileId, setSignedReportFileId] = useState('');
+  const [operatorSignature, setOperatorSignature] = useState('');
+  const [customerSignature, setCustomerSignature] = useState('');
 
   // Dropdown quick addition inputs
   const [newServiceType, setNewServiceType] = useState('');
@@ -135,6 +197,8 @@ export default function OnsiteServiceTab({
     setSignedReportUrl('');
     setSignedReportName('');
     setSignedReportFileId('');
+    setOperatorSignature('');
+    setCustomerSignature('');
     setCustomerSearchQuery('');
     setIsFormOpen(false);
   };
@@ -169,6 +233,8 @@ export default function OnsiteServiceTab({
     setSignedReportUrl(job.signedReportUrl || '');
     setSignedReportName(job.signedReportName || '');
     setSignedReportFileId(job.signedReportFileId || '');
+    setOperatorSignature(job.operatorSignature || '');
+    setCustomerSignature(job.customerSignature || '');
     setIsFormOpen(true);
   };
 
@@ -204,10 +270,16 @@ export default function OnsiteServiceTab({
 
     setIsUploading(true);
     try {
+      const resolvedJobNo = editingId ? (onsiteJobs.find(j => j.id === editingId)?.jobNo || generateJobNo()) : generateJobNo();
+      const jobNoClean = resolvedJobNo.replace(/\//g, '_');
       const uploadedPhotos: ServicePhoto[] = [];
+      let index = photos.length;
       for (const file of Array.from(files) as File[]) {
+        index++;
+        const ext = file.name.split('.').pop();
+        const fileName = `${jobNoClean}_${index}.${ext}`;
         // Upload directly to Drive
-        const result = await uploadFileToDrive(file, file.name, 'TechLink_PIC', token);
+        const result = await uploadFileToDrive(file, fileName, 'TechLink_PIC', token);
         uploadedPhotos.push({
           url: result.thumbnailLink || result.webContentLink || result.webViewLink || result.fileId,
           caption: '',
@@ -246,9 +318,14 @@ export default function OnsiteServiceTab({
 
     setIsUploading(true);
     try {
-      const result = await uploadFileToDrive(file, file.name, 'TechLink_PDF', token);
+      const resolvedJobNo = editingId ? (onsiteJobs.find(j => j.id === editingId)?.jobNo || generateJobNo()) : generateJobNo();
+      const jobNoClean = resolvedJobNo.replace(/\//g, '_');
+      const ext = file.name.split('.').pop();
+      const fileName = `${jobNoClean}_Report.${ext}`;
+
+      const result = await uploadFileToDrive(file, fileName, 'TechLink_PDF', token);
       setSignedReportUrl(result.webContentLink || result.webViewLink || result.fileId);
-      setSignedReportName(file.name);
+      setSignedReportName(fileName);
       setSignedReportFileId(result.fileId);
     } catch (err: any) {
       console.error(err);
@@ -314,7 +391,9 @@ export default function OnsiteServiceTab({
       photos,
       signedReportUrl,
       signedReportName,
-      signedReportFileId
+      signedReportFileId,
+      operatorSignature,
+      customerSignature
     };
 
     try {
@@ -430,28 +509,47 @@ export default function OnsiteServiceTab({
       const imgWidth = 210;
       const pageHeight = 297;
 
-      for (let i = 0; i < pages.length; i++) {
-        const pageElement = pages[i] as HTMLElement;
-        const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
+      await withColorCleanedComputedStyle(async () => {
+        for (let i = 0; i < pages.length; i++) {
+          const pageElement = pages[i] as HTMLElement;
+          
+          // Clone the element and place it directly on the body to avoid container scroll-clipping and scaling issues
+          const clone = pageElement.cloneNode(true) as HTMLElement;
+          
+          // Apply styling to ensure it is rendered fully and outside the viewport
+          clone.style.position = 'absolute';
+          clone.style.left = '-9999px';
+          clone.style.top = '0';
+          clone.style.width = '794px';
+          clone.style.height = '1123px';
+          clone.style.overflow = 'visible';
+          clone.style.boxShadow = 'none';
+          clone.style.border = 'none';
+          
+          document.body.appendChild(clone);
 
-        if (i > 0) pdf.addPage();
-        
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        while (heightLeft > 5) {
-          position -= pageHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+          // Render the clone
+          const canvas = await html2canvas(clone, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            width: 794,
+            height: 1123,
+            scrollX: 0,
+            scrollY: 0
+          });
+
+          document.body.removeChild(clone);
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          if (i > 0) pdf.addPage();
+          
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
         }
-      }
+      });
 
       const prefix = reportViewMode === 'simple' ? 'CustomerSummary' : 'JobService';
       pdf.save(`${prefix}_${exportTargetJob?.jobNo?.replace('/', '_')}.pdf`);
@@ -489,6 +587,37 @@ export default function OnsiteServiceTab({
   const searchedCustomers = customers.filter(c => 
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
   );
+
+  const getAvailableContacts = () => {
+    if (!customerCompany) return [];
+    const selectedCustomerObj = customers.find(c => c.companyName === customerCompany);
+    if (!selectedCustomerObj) return [];
+    
+    const list = [];
+    if (selectedCustomerObj.contactName) {
+      list.push({
+        name: selectedCustomerObj.contactName,
+        detail: selectedCustomerObj.contactDetail || '',
+        phone: selectedCustomerObj.contactPhone || '',
+        email: selectedCustomerObj.contactEmail || ''
+      });
+    }
+    if (selectedCustomerObj.contacts && selectedCustomerObj.contacts.length > 0) {
+      selectedCustomerObj.contacts.forEach(c => {
+        if (c.name && !list.some(item => item.name === c.name)) {
+          list.push({
+            name: c.name,
+            detail: c.detail || '',
+            phone: c.phone || '',
+            email: c.email || ''
+          });
+        }
+      });
+    }
+    return list;
+  };
+
+  const availableContacts = getAvailableContacts();
 
   return (
     <div className="space-y-3" id="onsite-tab">
@@ -802,14 +931,51 @@ export default function OnsiteServiceTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อ-นามสกุลผู้ติดต่อ</label>
-                    <input
-                      type="text"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      placeholder="คุณสมชาย"
-                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
-                    />
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">
+                      ชื่อ-นามสกุลผู้ติดต่อ {availableContacts.length > 0 && <span className="text-blue-600 font-normal ml-1">(สามารถเลือกจากฐานข้อมูลได้)</span>}
+                    </label>
+                    {availableContacts.length > 0 ? (
+                      <div className="flex gap-1.5">
+                        <select
+                          value={availableContacts.some(ac => ac.name === contactName) ? contactName : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const match = availableContacts.find(ac => ac.name === val);
+                              if (match) {
+                                setContactName(match.name);
+                                setContactDetail(match.detail);
+                                setContactPhone(match.phone);
+                                setContactEmail(match.email);
+                              }
+                            }
+                          }}
+                          className="text-xs px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[150px] sm:max-w-[200px]"
+                        >
+                          <option value="">-- เลือกผู้ติดต่อ --</option>
+                          {availableContacts.map((ac, idx) => (
+                            <option key={idx} value={ac.name}>
+                              {ac.name} {ac.detail ? `(${ac.detail})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          placeholder="หรือพิมพ์ชื่อผู้ติดต่อ..."
+                          className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        placeholder="คุณสมชาย"
+                        className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">รายละเอียดผู้ติดต่อ (ถ้ามี)</label>
@@ -1132,6 +1298,29 @@ export default function OnsiteServiceTab({
                 )}
               </div>
 
+              {/* Digital Signature section */}
+              <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <PenTool className="text-blue-600 w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-xs text-blue-900">ลงลายมือชื่อดิจิตอล (Digital Signatures)</h4>
+                    <p className="text-[10px] text-gray-500">ลงชื่อออนไลน์เพื่อแสดงความยินยอมและยืนยันการปฏิบัติงาน ลายเซ็นจะปรากฏบนรายงานเมื่อสั่งพิมพ์</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <SignaturePad 
+                    label="ลายมือชื่อผู้ปฏิบัติงาน (Operator Signature)" 
+                    value={operatorSignature} 
+                    onChange={setOperatorSignature} 
+                  />
+                  <SignaturePad 
+                    label="ลายมือชื่อลูกค้า (Customer/Recipient Signature)" 
+                    value={customerSignature} 
+                    onChange={setCustomerSignature} 
+                  />
+                </div>
+              </div>
+
               {/* Signed Report Upload area */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-start gap-2.5">
@@ -1380,14 +1569,26 @@ export default function OnsiteServiceTab({
 
                     {/* Signature pads for customer report */}
                     <div className="pt-8 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
-                      <div className="space-y-12">
-                        <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
-                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                      <div className="flex flex-col items-center justify-end h-28 space-y-1">
+                        <div className="text-gray-700 font-bold text-[12px] mb-1">ผู้ปฏิบัติงาน</div>
+                        {processedOperatorSig ? (
+                          <div className="h-14 flex items-center justify-center">
+                            <img src={processedOperatorSig} alt="Operator Signature" className="max-h-14 object-contain" referrerPolicy="no-referrer" />
+                          </div>
+                        ) : (
+                          <div className="h-14 border-b border-gray-300 w-48 mx-auto"></div>
+                        )}
                         <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
-                      <div className="space-y-12">
-                        <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
-                        <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                      <div className="flex flex-col items-center justify-end h-28 space-y-1">
+                        <div className="text-gray-700 font-bold text-[12px] mb-1">ลูกค้า</div>
+                        {processedCustomerSig ? (
+                          <div className="h-14 flex items-center justify-center">
+                            <img src={processedCustomerSig} alt="Customer Signature" className="max-h-14 object-contain" referrerPolicy="no-referrer" />
+                          </div>
+                        ) : (
+                          <div className="h-14 border-b border-gray-300 w-48 mx-auto"></div>
+                        )}
                         <div className="text-gray-500 text-[11px]">(........................................................)</div>
                       </div>
                     </div>
@@ -1395,7 +1596,7 @@ export default function OnsiteServiceTab({
                 )}
 
                 {/* Photo Pages (Pages 2, 3, 4 sequentially as requested) */}
-                {exportTargetJob.photos && exportTargetJob.photos.length > 0 && (
+                {processedPhotos && processedPhotos.length > 0 && (
                   <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     <h3 className="font-extrabold text-blue-900 text-sm border-b border-blue-100 pb-1.5 flex items-center gap-1">
                       <ImageIcon className="w-4 h-4 text-blue-600" />
@@ -1403,11 +1604,15 @@ export default function OnsiteServiceTab({
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {exportTargetJob.photos.map((p, pIdx) => (
+                      {processedPhotos.map((p, pIdx) => (
                         <div key={pIdx} className="border border-gray-200 p-3 rounded bg-gray-50 text-center space-y-2">
                           <div className="font-bold text-gray-500 text-[10px] uppercase">รูปถ่ายหน้า {pIdx + 2}</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white border border-gray-100 flex items-center justify-center max-h-48">
-                            <img src={p.url} alt={`Preview ${pIdx + 2}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            {p.url ? (
+                              <img src={p.url} alt={`Preview ${pIdx + 2}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="text-gray-400 text-xs">ไม่มีรูปภาพ</div>
+                            )}
                           </div>
                           <div className="font-bold text-gray-800 text-[11px] bg-white p-2 rounded shadow-sm">{p.caption || 'ไม่มีคำบรรยายใต้ภาพ'}</div>
                         </div>
@@ -1420,13 +1625,21 @@ export default function OnsiteServiceTab({
             </div>
 
             {/* Export trigger bar */}
-            <div className="bg-gray-50 p-4 border-t border-gray-100 flex flex-wrap justify-between gap-3 items-center shrink-0">
-              <span className="text-xs text-gray-500">เลือกประเภทไฟล์เพื่อส่งออกไปยังคอมพิวเตอร์ของคุณ</span>
+            <div className="bg-gray-50 p-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between gap-3 items-center shrink-0">
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 font-bold">เลือกประเภทไฟล์เพื่อส่งออกไปยังคอมพิวเตอร์ของคุณ</span>
+                {isProcessingImages && (
+                  <span className="text-[10px] text-blue-600 animate-pulse mt-0.5 font-bold">
+                    ⌛ กำลังดาวน์โหลดและแปลงข้อมูลรูปภาพเพื่อเลี่ยงปัญหาการส่งออก... (โปรดรอสักครู่)
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 {/* Excel export (Excel table blob) */}
                 <button
                   onClick={() => exportToExcelTable('printable-job-service-doc', `JobService_${exportTargetJob.jobNo.replace('/', '_')}`)}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>ส่งออก Excel</span>
@@ -1435,7 +1648,8 @@ export default function OnsiteServiceTab({
                 {/* Word export */}
                 <button
                   onClick={() => exportToWord('printable-job-service-doc', `JobService_${exportTargetJob.jobNo.replace('/', '_')}`)}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText className="w-4 h-4" />
                   <span>ส่งออก Word</span>
@@ -1444,10 +1658,11 @@ export default function OnsiteServiceTab({
                 {/* PDF export */}
                 <button
                   onClick={handleExportPDF}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4" />
-                  <span>ส่งออก PDF</span>
+                  <span>{isProcessingImages ? 'กำลังเตรียมไฟล์...' : 'ส่งออก PDF'}</span>
                 </button>
 
                 <button

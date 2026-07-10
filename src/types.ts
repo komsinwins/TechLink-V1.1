@@ -56,6 +56,8 @@ export interface OnsiteService {
   signedReportUrl: string; // Base64 file string for customer-signed PDF/report
   signedReportName: string; // Name of the uploaded file
   signedReportFileId?: string; // Google Drive file ID
+  operatorSignature?: string; // Base64 drawing
+  customerSignature?: string; // Base64 drawing
   createdAt?: number;
 }
 
@@ -107,6 +109,8 @@ export interface ProductClaim {
   returnedPhoto: string; // Base64 or Drive URL
   claimReportUrl?: string; // Drive URL
   claimReportName?: string;
+  inspectorSignature?: string; // Base64 drawing
+  customerSignature?: string; // Base64 drawing
   remarks: string;
   createdAt?: number;
 }

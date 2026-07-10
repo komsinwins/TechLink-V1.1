@@ -1,16 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ProductClaim, Customer } from '../types';
 import { 
   Search, Plus, Trash2, Edit3, Eye, Download, Upload, AlertCircle, 
   PackageOpen, FileText, Calendar, CheckSquare, ShieldCheck, MapPin, Image as ImageIcon, FileSpreadsheet,
-  Check, X
+  Check, X, PenTool
 } from 'lucide-react';
-import { calculateDaysDiff, calculateRemainingWarranty, exportToCSV, parseCSV, exportToWord, exportToExcelTable } from '../utils';
+import { calculateDaysDiff, calculateRemainingWarranty, exportToCSV, parseCSV, exportToWord, exportToExcelTable, convertDriveUrlToBase64, withColorCleanedComputedStyle } from '../utils';
 import { uploadFileToDrive } from '../drive';
 import { getAccessToken } from '../firebase';
 import { exportDataToGoogleSheets } from '../sheets';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { SignaturePad } from './SignaturePad';
 
 interface ProductClaimsProps {
   claims: ProductClaim[];
@@ -50,6 +51,67 @@ export default function ProductClaimsTab({
   // Claim printable document view modal
   const [printableClaimDoc, setPrintableClaimDoc] = useState<ProductClaim | null>(null);
 
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const [processedReceivedPhoto, setProcessedReceivedPhoto] = useState('');
+  const [processedReturnedPhoto, setProcessedReturnedPhoto] = useState('');
+  const [processedInspectorSig, setProcessedInspectorSig] = useState('');
+  const [processedCustomerSig, setProcessedCustomerSig] = useState('');
+
+  useEffect(() => {
+    if (!printableClaimDoc) {
+      setProcessedReceivedPhoto('');
+      setProcessedReturnedPhoto('');
+      setProcessedInspectorSig('');
+      setProcessedCustomerSig('');
+      return;
+    }
+
+    const processImages = async () => {
+      setIsProcessingImages(true);
+      try {
+        const token = await getAccessToken();
+
+        // 1. Process Received Photo
+        if (printableClaimDoc.receivedPhoto) {
+          const base64 = await convertDriveUrlToBase64(printableClaimDoc.receivedPhoto, token);
+          setProcessedReceivedPhoto(base64);
+        } else {
+          setProcessedReceivedPhoto('');
+        }
+
+        // 2. Process Returned Photo
+        if (printableClaimDoc.returnedPhoto) {
+          const base64 = await convertDriveUrlToBase64(printableClaimDoc.returnedPhoto, token);
+          setProcessedReturnedPhoto(base64);
+        } else {
+          setProcessedReturnedPhoto('');
+        }
+
+        // 3. Process Inspector Signature
+        if (printableClaimDoc.inspectorSignature) {
+          const base64 = await convertDriveUrlToBase64(printableClaimDoc.inspectorSignature, token);
+          setProcessedInspectorSig(base64);
+        } else {
+          setProcessedInspectorSig('');
+        }
+
+        // 4. Process Customer Signature
+        if (printableClaimDoc.customerSignature) {
+          const base64 = await convertDriveUrlToBase64(printableClaimDoc.customerSignature, token);
+          setProcessedCustomerSig(base64);
+        } else {
+          setProcessedCustomerSig('');
+        }
+      } catch (err) {
+        console.error('Error pre-processing image URLs in ProductClaims:', err);
+      } finally {
+        setIsProcessingImages(false);
+      }
+    };
+
+    processImages();
+  }, [printableClaimDoc]);
+
   // Search customer query for auto-fill
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -79,6 +141,8 @@ export default function ProductClaimsTab({
   const [claimReportUrl, setClaimReportUrl] = useState('');
   const [claimReportName, setClaimReportName] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [inspectorSignature, setInspectorSignature] = useState('');
+  const [customerSignature, setCustomerSignature] = useState('');
 
   const receivedPhotoInputRef = useRef<HTMLInputElement>(null);
   const returnedPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -117,6 +181,8 @@ export default function ProductClaimsTab({
     setReturnedPhoto('');
     setClaimReportUrl('');
     setClaimReportName('');
+    setInspectorSignature('');
+    setCustomerSignature('');
     setRemarks('');
     setCustomerSearchQuery('');
     setIsFormOpen(false);
@@ -147,6 +213,8 @@ export default function ProductClaimsTab({
     setReturnedPhoto(claim.returnedPhoto || '');
     setClaimReportUrl(claim.claimReportUrl || '');
     setClaimReportName(claim.claimReportName || '');
+    setInspectorSignature(claim.inspectorSignature || '');
+    setCustomerSignature(claim.customerSignature || '');
     setRemarks(claim.remarks || '');
     setIsFormOpen(true);
   };
@@ -212,13 +280,13 @@ export default function ProductClaimsTab({
 
     const resolvedClaimNo = editingId ? (claims.find(c => c.id === editingId)?.claimNo || generateClaimNo()) : generateClaimNo();
     const ext = file.name.split('.').pop();
-    const fileName = `${resolvedClaimNo.replace(/\//g, '_')}_1.${ext}`;
+    const fileName = `${resolvedClaimNo.replace(/\//g, '_')}_Report.${ext}`;
 
     setIsUploading(true);
     try {
       const result = await uploadFileToDrive(file, fileName, 'รายงานสินค้าเคลมสินค้า', token);
       setClaimReportUrl(result.webViewLink || result.fileId);
-      setClaimReportName(file.name);
+      setClaimReportName(fileName);
     } catch (err: any) {
       console.error(err);
       if (err.message && err.message.includes('403')) {
@@ -283,6 +351,8 @@ export default function ProductClaimsTab({
       returnedPhoto,
       claimReportUrl,
       claimReportName,
+      inspectorSignature,
+      customerSignature,
       remarks
     };
 
@@ -432,28 +502,47 @@ export default function ProductClaimsTab({
       const imgWidth = 210;
       const pageHeight = 297;
 
-      for (let i = 0; i < pages.length; i++) {
-        const pageElement = pages[i] as HTMLElement;
-        const canvas = await html2canvas(pageElement, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        let heightLeft = imgHeight;
-        let position = 0;
+      await withColorCleanedComputedStyle(async () => {
+        for (let i = 0; i < pages.length; i++) {
+          const pageElement = pages[i] as HTMLElement;
+          
+          // Clone the element and place it directly on the body to avoid container scroll-clipping and scaling issues
+          const clone = pageElement.cloneNode(true) as HTMLElement;
+          
+          // Apply styling to ensure it is rendered fully and outside the viewport
+          clone.style.position = 'absolute';
+          clone.style.left = '-9999px';
+          clone.style.top = '0';
+          clone.style.width = '794px';
+          clone.style.height = '1123px';
+          clone.style.overflow = 'visible';
+          clone.style.boxShadow = 'none';
+          clone.style.border = 'none';
+          
+          document.body.appendChild(clone);
 
-        if (i > 0) pdf.addPage();
-        
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        
-        while (heightLeft > 5) {
-          position -= pageHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
+          // Render the clone
+          const canvas = await html2canvas(clone, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            width: 794,
+            height: 1123,
+            scrollX: 0,
+            scrollY: 0
+          });
+
+          document.body.removeChild(clone);
+
+          const imgData = canvas.toDataURL('image/png');
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          if (i > 0) pdf.addPage();
+          
+          pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
         }
-      }
+      });
       pdf.save(`ClaimReport_${printableClaimDoc?.serialNumber || 'S_N'}.pdf`);
     } catch (err) {
       console.error(err);
@@ -489,6 +578,37 @@ export default function ProductClaimsTab({
   const searchedCustomers = customers.filter(c => 
     c.companyName?.toLowerCase().includes(customerSearchQuery.toLowerCase())
   );
+
+  const getAvailableContacts = () => {
+    if (!customerCompany) return [];
+    const selectedCustomerObj = customers.find(c => c.companyName === customerCompany);
+    if (!selectedCustomerObj) return [];
+    
+    const list = [];
+    if (selectedCustomerObj.contactName) {
+      list.push({
+        name: selectedCustomerObj.contactName,
+        detail: selectedCustomerObj.contactDetail || '',
+        phone: selectedCustomerObj.contactPhone || '',
+        email: selectedCustomerObj.contactEmail || ''
+      });
+    }
+    if (selectedCustomerObj.contacts && selectedCustomerObj.contacts.length > 0) {
+      selectedCustomerObj.contacts.forEach(c => {
+        if (c.name && !list.some(item => item.name === c.name)) {
+          list.push({
+            name: c.name,
+            detail: c.detail || '',
+            phone: c.phone || '',
+            email: c.email || ''
+          });
+        }
+      });
+    }
+    return list;
+  };
+
+  const availableContacts = getAvailableContacts();
 
   return (
     <div className="space-y-3" id="claims-tab">
@@ -821,14 +941,51 @@ export default function ProductClaimsTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อ-นามสกุลผู้ติดต่อ</label>
-                    <input
-                      type="text"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      placeholder="ผู้ติดต่อ"
-                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
-                    />
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">
+                      ชื่อ-นามสกุลผู้ติดต่อ {availableContacts.length > 0 && <span className="text-blue-600 font-normal ml-1">(สามารถเลือกจากฐานข้อมูลได้)</span>}
+                    </label>
+                    {availableContacts.length > 0 ? (
+                      <div className="flex gap-1.5">
+                        <select
+                          value={availableContacts.some(ac => ac.name === contactName) ? contactName : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const match = availableContacts.find(ac => ac.name === val);
+                              if (match) {
+                                setContactName(match.name);
+                                setContactDetail(match.detail);
+                                setContactPhone(match.phone);
+                                setContactEmail(match.email);
+                              }
+                            }
+                          }}
+                          className="text-xs px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[150px] sm:max-w-[200px]"
+                        >
+                          <option value="">-- เลือกผู้ติดต่อ --</option>
+                          {availableContacts.map((ac, idx) => (
+                            <option key={idx} value={ac.name}>
+                              {ac.name} {ac.detail ? `(${ac.detail})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          placeholder="หรือพิมพ์ชื่อผู้ติดต่อ..."
+                          className="flex-1 text-xs px-3 py-1.5 border border-gray-300 rounded focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={contactName}
+                        onChange={(e) => setContactName(e.target.value)}
+                        placeholder="ผู้ติดต่อ"
+                        className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">เบอร์โทรศัพท์ผู้ติดต่อ</label>
@@ -1083,6 +1240,29 @@ export default function ProductClaimsTab({
                 </div>
               </div>
 
+              {/* Digital Signature section */}
+              <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <PenTool className="text-blue-600 w-5 h-5 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-xs text-blue-900">ลงลายมือชื่อดิจิตอล (Digital Signatures)</h4>
+                    <p className="text-[10px] text-gray-500">ลงชื่อออนไลน์เพื่อยืนยันการรับเข้าและส่งเคลมสินค้า ลายเซ็นจะแสดงในใบรายงานเมื่อกดส่งพิมพ์</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <SignaturePad 
+                    label="ลายมือชื่อผู้ตรวจสอบ (Inspector Signature)" 
+                    value={inspectorSignature} 
+                    onChange={setInspectorSignature} 
+                  />
+                  <SignaturePad 
+                    label="ลายมือชื่อลูกค้า (Customer Signature)" 
+                    value={customerSignature} 
+                    onChange={setCustomerSignature} 
+                  />
+                </div>
+              </div>
+
               {/* Claim Report Upload */}
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-start gap-2.5">
@@ -1251,39 +1431,51 @@ export default function ProductClaimsTab({
 
                 {/* Signature pads for customer report */}
                 <div className="pt-8 mt-4 grid grid-cols-2 gap-8 text-center border-t border-gray-100">
-                  <div className="space-y-12">
-                    <div className="text-gray-700 font-bold text-[12px]">ผู้ปฏิบัติงาน</div>
-                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                  <div className="flex flex-col items-center justify-end h-28 space-y-1">
+                    <div className="text-gray-700 font-bold text-[12px] mb-1">ผู้ปฏิบัติงาน</div>
+                    {processedInspectorSig ? (
+                      <div className="h-14 flex items-center justify-center">
+                        <img src={processedInspectorSig} alt="Inspector Signature" className="max-h-14 object-contain" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <div className="h-14 border-b border-gray-300 w-48 mx-auto"></div>
+                    )}
                     <div className="text-gray-500 text-[11px]">(........................................................)</div>
                   </div>
-                  <div className="space-y-12">
-                    <div className="text-gray-700 font-bold text-[12px]">ลูกค้า</div>
-                    <div className="border-b border-gray-300 w-48 mx-auto h-5"></div>
+                  <div className="flex flex-col items-center justify-end h-28 space-y-1">
+                    <div className="text-gray-700 font-bold text-[12px] mb-1">ลูกค้า</div>
+                    {processedCustomerSig ? (
+                      <div className="h-14 flex items-center justify-center">
+                        <img src={processedCustomerSig} alt="Customer Signature" className="max-h-14 object-contain" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <div className="h-14 border-b border-gray-300 w-48 mx-auto"></div>
+                    )}
                     <div className="text-gray-500 text-[11px]">(........................................................)</div>
                   </div>
                 </div>
 
                 {/* Images Attachment Visual section */}
-                {(printableClaimDoc.receivedPhoto || printableClaimDoc.returnedPhoto) && (
+                {(processedReceivedPhoto || processedReturnedPhoto) && (
                   <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
                     <h4 className="font-bold text-blue-900 text-sm border-b border-blue-100 pb-1.5 flex items-center gap-1">
                       <ImageIcon className="w-4 h-4 text-blue-600" />
                       <span>รูปถ่ายบันทึกการปฏิบัติงาน</span>
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {printableClaimDoc.receivedPhoto && (
+                      {processedReceivedPhoto && (
                         <div className="border border-gray-200 p-2.5 rounded bg-gray-50 text-center">
                           <div className="text-[10px] text-gray-500 font-bold mb-1">สภาพสินค้ารับเคลมครั้งแรก</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white flex items-center justify-center max-h-36">
-                            <img src={printableClaimDoc.receivedPhoto} alt="Received" className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            <img src={processedReceivedPhoto} alt="Received" className="object-cover w-full h-full" referrerPolicy="no-referrer" />
                           </div>
                         </div>
                       )}
-                      {printableClaimDoc.returnedPhoto && (
+                      {processedReturnedPhoto && (
                         <div className="border border-gray-200 p-2.5 rounded bg-gray-50 text-center">
                           <div className="text-[10px] text-gray-500 font-bold mb-1">สินค้ารุ่นใหม่ / ซ่อมคืนสินค้าเคลมเรียบร้อย</div>
                           <div className="aspect-video w-full rounded overflow-hidden bg-white flex items-center justify-center max-h-36">
-                            <img src={printableClaimDoc.returnedPhoto} alt="Returned" className="object-cover w-full h-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            <img src={processedReturnedPhoto} alt="Returned" className="object-cover w-full h-full" referrerPolicy="no-referrer" />
                           </div>
                         </div>
                       )}
@@ -1296,13 +1488,21 @@ export default function ProductClaimsTab({
           </div>
 
             {/* Document export bar */}
-            <div className="bg-gray-50 p-4 border-t border-gray-100 flex flex-wrap justify-between gap-3 items-center shrink-0">
-              <span className="text-xs text-gray-500">เลือกรูปแบบการส่งออกสำหรับ Claim Report ของคุณ</span>
+            <div className="bg-gray-50 p-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between gap-3 items-center shrink-0">
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 font-bold">เลือกรูปแบบการส่งออกสำหรับ Claim Report ของคุณ</span>
+                {isProcessingImages && (
+                  <span className="text-[10px] text-blue-600 animate-pulse mt-0.5 font-bold">
+                    ⌛ กำลังดาวน์โหลดและแปลงข้อมูลรูปภาพเพื่อเลี่ยงปัญหาการส่งออก... (โปรดรอสักครู่)
+                  </span>
+                )}
+              </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 {/* Excel export */}
                 <button
                   onClick={() => exportToExcelTable('printable-claim-report-doc', `ClaimReport_${printableClaimDoc.serialNumber}`)}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>ส่งออก Excel</span>
@@ -1311,7 +1511,8 @@ export default function ProductClaimsTab({
                 {/* Word export */}
                 <button
                   onClick={() => exportToWord('printable-claim-report-doc', `ClaimReport_${printableClaimDoc.serialNumber}`)}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText className="w-4 h-4" />
                   <span>ส่งออก Word</span>
@@ -1320,10 +1521,11 @@ export default function ProductClaimsTab({
                 {/* PDF export */}
                 <button
                   onClick={handleExportPDFReport}
-                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-xs cursor-pointer"
+                  disabled={isProcessingImages}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4" />
-                  <span>ส่งออก PDF</span>
+                  <span>{isProcessingImages ? 'กำลังเตรียมไฟล์...' : 'ส่งออก PDF'}</span>
                 </button>
 
                 <button

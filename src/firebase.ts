@@ -23,7 +23,7 @@ provider.setCustomParameters({
   prompt: 'consent select_account'
 });
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+let cachedAccessToken: string | null = localStorage.getItem('google_drive_access_token');
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -34,11 +34,18 @@ export const initAuth = (
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
       } else if (!isSigningIn) {
-        cachedAccessToken = null;
-        if (onAuthFailure) onAuthFailure();
+        // If there's no cached token but user is logged in, we try to see if there is one stored
+        cachedAccessToken = localStorage.getItem('google_drive_access_token');
+        if (cachedAccessToken) {
+          if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
+        } else {
+          cachedAccessToken = null;
+          if (onAuthFailure) onAuthFailure();
+        }
       }
     } else {
       cachedAccessToken = null;
+      localStorage.removeItem('google_drive_access_token');
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -53,6 +60,7 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       throw new Error('Failed to get access token from Firebase Auth');
     }
     cachedAccessToken = credential.accessToken;
+    localStorage.setItem('google_drive_access_token', cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     if (error?.code !== 'auth/popup-closed-by-user' && error?.code !== 'auth/cancelled-popup-request') {
@@ -65,10 +73,14 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
+  if (!cachedAccessToken) {
+    cachedAccessToken = localStorage.getItem('google_drive_access_token');
+  }
   return cachedAccessToken;
 };
 
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
+  localStorage.removeItem('google_drive_access_token');
 };
