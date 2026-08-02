@@ -5,6 +5,23 @@ export interface CustomerContact {
   email: string;
 }
 
+export interface DistributorContact {
+  name: string;
+  department: string;
+  phones: string[];
+}
+
+export interface Distributor {
+  id?: string;
+  companyName: string;
+  address: string;
+  contacts: DistributorContact[];
+  claimAddress: string;
+  claimContacts?: DistributorContact[];
+  createdAt?: number;
+}
+
+
 export interface Customer {
   id?: string;
   companyName: string;
@@ -90,16 +107,19 @@ export interface ProductClaim {
   id?: string;
   claimNo?: string;
   customerCompany: string;
+  projectName?: string;
   customerAddress: string;
   contactName: string;
   contactDetail: string;
   contactPhone: string;
   contactEmail: string;
   partnerCompany: string;
+  distributorContactName?: string;
   productType: string;
   brand: string;
   model: string;
   serialNumber: string;
+  symptoms?: string;
   purchaseDate: string; // YYYY-MM-DD
   warrantyDuration: number; // In months
   claimDestination: string;

@@ -3,7 +3,7 @@ import {
   collection, doc, onSnapshot, setDoc, getDoc, addDoc, updateDoc, deleteDoc, writeBatch 
 } from 'firebase/firestore';
 import { db, initAuth, googleSignIn, logout, getAccessToken } from './firebase';
-import { OnsiteService, OnCallService, ProductClaim, Customer, DropdownOptions } from './types';
+import { OnsiteService, OnCallService, ProductClaim, Customer, Distributor, DropdownOptions } from './types';
 import { User } from 'firebase/auth';
 
 // Import components
@@ -12,12 +12,13 @@ import OnsiteServiceTab from './components/OnsiteService';
 import OnCallServiceTab from './components/OnCallService';
 import ProductClaimsTab from './components/ProductClaims';
 import CustomerDatabase from './components/CustomerDatabase';
+import DistributorDatabase from './components/DistributorDatabase';
 import Settings from './components/Settings';
 
 // Icons
 import { 
   Calendar, PhoneCall, PackageOpen, Users, Settings as SettingsIcon, 
-  LayoutDashboard, Menu, X, ShieldAlert, CheckCircle2, LogIn, LogOut
+  LayoutDashboard, Menu, X, ShieldAlert, CheckCircle2, LogIn, LogOut, Briefcase
 } from 'lucide-react';
 
 // Default Dropdown selections
@@ -35,6 +36,7 @@ export default function App() {
 
   // Core App states
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [onsiteJobs, setOnsiteJobs] = useState<OnsiteService[]>([]);
   const [oncallJobs, setOnCallJobs] = useState<OnCallService[]>([]);
   const [claims, setClaims] = useState<ProductClaim[]>([]);
@@ -77,6 +79,15 @@ export default function App() {
         data.push({ id: docSnap.id, ...docSnap.data() } as Customer);
       });
       setCustomers(data);
+    });
+
+    // Distributors Listener
+    const unsubDistributors = onSnapshot(collection(db, 'distributors'), (snapshot) => {
+      const data: Distributor[] = [];
+      snapshot.forEach((docSnap) => {
+        data.push({ id: docSnap.id, ...docSnap.data() } as Distributor);
+      });
+      setDistributors(data);
     });
 
     // Onsite Service Jobs Listener
@@ -123,6 +134,7 @@ export default function App() {
     return () => {
       unsubAuth();
       unsubCustomers();
+      unsubDistributors();
       unsubOnsite();
       unsubOnCall();
       unsubClaims();
@@ -185,6 +197,25 @@ export default function App() {
     customersList.forEach((cust) => {
       const newRef = doc(collection(db, 'customers'));
       batch.set(newRef, { ...cust, createdAt: Date.now() });
+    });
+    return await batch.commit();
+  };
+
+  // -- Distributors --
+  const handleAddDistributor = async (dist: Distributor) => {
+    return await addDoc(collection(db, 'distributors'), { ...dist, createdAt: Date.now() });
+  };
+  const handleUpdateDistributor = async (id: string, dist: Distributor) => {
+    return await updateDoc(doc(db, 'distributors', id), { ...dist });
+  };
+  const handleDeleteDistributor = async (id: string) => {
+    return await deleteDoc(doc(db, 'distributors', id));
+  };
+  const handleImportDistributors = async (distList: Distributor[]) => {
+    const batch = writeBatch(db);
+    distList.forEach((dist) => {
+      const newRef = doc(collection(db, 'distributors'));
+      batch.set(newRef, { ...dist, createdAt: Date.now() });
     });
     return await batch.commit();
   };
@@ -450,6 +481,16 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setActiveTab('distributors')}
+              className={`px-2 py-1 rounded transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'distributors' ? 'bg-blue-800 text-white shadow-inner border border-blue-900/40' : 'hover:bg-blue-600/60 text-blue-100'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>ฐานข้อมูลตัวแทนจำหน่าย</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('settings')}
               className={`px-2 py-1 rounded transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'settings' ? 'bg-blue-800 text-white shadow-inner border border-blue-900/40' : 'hover:bg-blue-600/60 text-blue-100'
@@ -573,6 +614,16 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => { setActiveTab('distributors'); setIsMobileMenuOpen(false); }}
+            className={`w-full text-left px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 ${
+              activeTab === 'distributors' ? 'bg-blue-900' : 'hover:bg-blue-700'
+            }`}
+          >
+            <Briefcase className="w-4 h-4" />
+            <span>ฐานข้อมูลตัวแทนจำหน่าย</span>
+          </button>
+
+          <button
             onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
             className={`w-full text-left px-4 py-2.5 rounded-lg font-bold text-xs flex items-center gap-2 ${
               activeTab === 'settings' ? 'bg-blue-900' : 'hover:bg-blue-700'
@@ -668,6 +719,7 @@ export default function App() {
               <ProductClaimsTab
                 claims={claims}
                 customers={customers}
+                distributors={distributors}
                 productTypes={dropdownOptions.productTypes}
                 operators={dropdownOptions.operators}
                 onAddClaim={handleAddClaim}
@@ -697,6 +749,16 @@ export default function App() {
                 onViewOnsiteJob={(job) => { setSelectedOnsiteForView(job); setActiveTab('onsite'); }}
                 onViewOncallJob={(job) => { setSelectedOncallForView(job); setActiveTab('oncall'); }}
                 onViewClaim={(claim) => { setSelectedClaimForView(claim); setActiveTab('claims'); }}
+              />
+            )}
+
+            {activeTab === 'distributors' && (
+              <DistributorDatabase
+                distributors={distributors}
+                onAddDistributor={handleAddDistributor}
+                onUpdateDistributor={handleUpdateDistributor}
+                onDeleteDistributor={handleDeleteDistributor}
+                onImportDistributors={handleImportDistributors}
               />
             )}
 

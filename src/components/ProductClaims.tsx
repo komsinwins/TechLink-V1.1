@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ProductClaim, Customer } from '../types';
+import { ProductClaim, Customer, Distributor } from '../types';
 import { 
   Search, Plus, Trash2, Edit3, Eye, Download, Upload, AlertCircle, 
   PackageOpen, FileText, Calendar, CheckSquare, ShieldCheck, MapPin, Image as ImageIcon, FileSpreadsheet,
@@ -16,6 +16,7 @@ import { SignaturePad } from './SignaturePad';
 interface ProductClaimsProps {
   claims: ProductClaim[];
   customers: Customer[];
+  distributors: Distributor[];
   productTypes: string[];
   operators: string[];
   onAddClaim: (claim: ProductClaim) => Promise<any>;
@@ -31,6 +32,7 @@ interface ProductClaimsProps {
 export default function ProductClaimsTab({
   claims,
   customers,
+  distributors,
   productTypes,
   operators,
   onAddClaim,
@@ -118,16 +120,19 @@ export default function ProductClaimsTab({
 
   // Form states
   const [customerCompany, setCustomerCompany] = useState('');
+  const [projectName, setProjectName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactDetail, setContactDetail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [partnerCompany, setPartnerCompany] = useState('');
+  const [distributorContactName, setDistributorContactName] = useState('');
   const [productType, setProductType] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
+  const [symptoms, setSymptoms] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [warrantyDuration, setWarrantyDuration] = useState<number>(12); // months default
   const [claimDestination, setClaimDestination] = useState('');
@@ -158,16 +163,19 @@ export default function ProductClaimsTab({
   const resetForm = () => {
     setEditingId(null);
     setCustomerCompany('');
+    setProjectName('');
     setCustomerAddress('');
     setContactName('');
     setContactDetail('');
     setContactPhone('');
     setContactEmail('');
     setPartnerCompany('');
+    setDistributorContactName('');
     setProductType('');
     setBrand('');
     setModel('');
     setSerialNumber('');
+    setSymptoms('');
     const today = new Date().toISOString().split('T')[0];
     setPurchaseDate(today);
     setWarrantyDuration(12);
@@ -191,16 +199,19 @@ export default function ProductClaimsTab({
   const handleEdit = (claim: ProductClaim) => {
     setEditingId(claim.id || null);
     setCustomerCompany(claim.customerCompany || '');
+    setProjectName(claim.projectName || '');
     setCustomerAddress(claim.customerAddress || '');
     setContactName(claim.contactName || '');
     setContactDetail(claim.contactDetail || '');
     setContactPhone(claim.contactPhone || '');
     setContactEmail(claim.contactEmail || '');
     setPartnerCompany(claim.partnerCompany || '');
+    setDistributorContactName(claim.distributorContactName || '');
     setProductType(claim.productType || '');
     setBrand(claim.brand || '');
     setModel(claim.model || '');
     setSerialNumber(claim.serialNumber || '');
+    setSymptoms(claim.symptoms || '');
     setPurchaseDate(claim.purchaseDate || '');
     setWarrantyDuration(Number(claim.warrantyDuration) || 12);
     setClaimDestination(claim.claimDestination || '');
@@ -329,16 +340,19 @@ export default function ProductClaimsTab({
     const payload: ProductClaim = {
       claimNo: resolvedClaimNo,
       customerCompany,
+      projectName,
       customerAddress,
       contactName,
       contactDetail,
       contactPhone,
       contactEmail,
       partnerCompany,
+      distributorContactName,
       productType,
       brand,
       model,
       serialNumber,
+      symptoms,
       purchaseDate,
       warrantyDuration: Number(warrantyDuration),
       claimDestination,
@@ -375,23 +389,26 @@ export default function ProductClaimsTab({
     setIsExporting(true);
     try {
       const headers = [
-        'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
-        'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 
-        'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'สถานที่ส่งเคลม', 'อาคารที่แจ้งเคลม', 
+        'ชื่อของบริษัทลูกค้า', 'ชื่อโครงการ', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
+        'อีเมลติดต่อ', 'บริษัทตัวแทนจำหน่าย', 'ผู้ติดต่อสำหรับการเคลม', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 'อาการเสียที่รับแจ้ง',
+        'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'ที่อยู่ตัวแทนจำหน่าย', 'ที่อยู่สำหรับส่งสินค้าเคลม', 
         'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ปฏิบัติงาน', 'สถานะสินค้าเคลม', 'หมายเหตุ'
       ];
       const dataRows = claims.map(c => [
         c.customerCompany,
+        c.projectName,
         c.customerAddress,
         c.contactName,
         c.contactDetail,
         c.contactPhone,
         c.contactEmail,
         c.partnerCompany,
+        c.distributorContactName,
         c.productType,
         c.brand,
         c.model,
         c.serialNumber,
+        c.symptoms,
         c.purchaseDate,
         c.warrantyDuration,
         c.claimDestination,
@@ -415,27 +432,30 @@ export default function ProductClaimsTab({
 
   const handleExportCSV = () => {
     const headers = [
-      'ชื่อของบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
-      'อีเมลติดต่อ', 'บริษัทคู่ค้า', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 
-      'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'สถานที่ส่งเคลม', 'อาคารที่แจ้งเคลม', 
+      'ชื่อของบริษัทลูกค้า', 'ชื่อโครงการ', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 'เบอร์โทรผู้ติดต่อ', 
+      'อีเมลติดต่อ', 'บริษัทตัวแทนจำหน่าย', 'ผู้ติดต่อสำหรับการเคลม', 'ประเภทสินค้าที่ส่งเคลม', 'ยี่ห้อสินค้า', 'รุ่น', 'ซีเรียลนัมเบอร์', 'อาการเสียที่รับแจ้ง',
+      'วันที่ซื้อสินค้า', 'ระยะเวลาการรับประกัน(เดือน)', 'ที่อยู่ตัวแทนจำหน่าย', 'ที่อยู่สำหรับส่งสินค้าเคลม', 
       'วันที่รับสินค้าเคลม', 'วันส่งสินค้าเคลม', 'ชื่อผู้ปฏิบัติงาน', 'สถานะสินค้าเคลม', 'หมายเหตุ'
     ];
     const data = claims.map(c => ({
       'ชื่อของบริษัทลูกค้า': c.customerCompany,
+      'ชื่อโครงการ': c.projectName,
       'ที่อยู่บริษัทลูกค้า': c.customerAddress,
       'ชื่อผู้ติดต่อ': c.contactName,
       'รายละเอียดผู้ติดต่อ': c.contactDetail,
       'เบอร์โทรผู้ติดต่อ': c.contactPhone,
       'อีเมลติดต่อ': c.contactEmail,
-      'บริษัทคู่ค้า': c.partnerCompany,
+      'บริษัทตัวแทนจำหน่าย': c.partnerCompany,
+      'ผู้ติดต่อสำหรับการเคลม': c.distributorContactName,
       'ประเภทสินค้าที่ส่งเคลม': c.productType,
       'ยี่ห้อสินค้า': c.brand,
       'รุ่น': c.model,
       'ซีเรียลนัมเบอร์': c.serialNumber,
+      'อาการเสียที่รับแจ้ง': c.symptoms,
       'วันที่ซื้อสินค้า': c.purchaseDate,
       'ระยะเวลาการรับประกัน(เดือน)': c.warrantyDuration,
-      'สถานที่ส่งเคลม': c.claimDestination,
-      'อาคารที่แจ้งเคลม': c.claimBuilding,
+      'ที่อยู่ตัวแทนจำหน่าย': c.claimDestination,
+      'ที่อยู่สำหรับส่งสินค้าเคลม': c.claimBuilding,
       'วันที่รับสินค้าเคลม': c.claimReceivedDate,
       'วันส่งสินค้าเคลม': c.claimSentDate,
       'ชื่อผู้ปฏิบัติงาน': c.inspector,
@@ -456,20 +476,23 @@ export default function ProductClaimsTab({
       
       const mapped: ProductClaim[] = parsed.map(item => ({
         customerCompany: item['ชื่อของบริษัทลูกค้า'] || item['customerCompany'] || '',
+        projectName: item['ชื่อโครงการ'] || item['projectName'] || '',
         customerAddress: item['ที่อยู่บริษัทลูกค้า'] || item['customerAddress'] || '',
         contactName: item['ชื่อผู้ติดต่อ'] || item['contactName'] || '',
         contactDetail: item['รายละเอียดผู้ติดต่อ'] || item['contactDetail'] || '',
         contactPhone: item['เบอร์โทรผู้ติดต่อ'] || item['contactPhone'] || '',
         contactEmail: item['อีเมลติดต่อ'] || item['contactEmail'] || '',
-        partnerCompany: item['บริษัทคู่ค้า'] || item['partnerCompany'] || '',
+        partnerCompany: item['บริษัทตัวแทนจำหน่าย'] || item['บริษัทคู่ค้า'] || item['partnerCompany'] || '',
+        distributorContactName: item['ผู้ติดต่อสำหรับการเคลม'] || item['distributorContactName'] || '',
         productType: item['ประเภทสินค้าที่ส่งเคลม'] || item['productType'] || '',
         brand: item['ยี่ห้อสินค้า'] || item['brand'] || '',
         model: item['รุ่น'] || item['model'] || '',
         serialNumber: item['ซีเรียลนัมเบอร์'] || item['serialNumber'] || '',
+        symptoms: item['อาการเสียที่รับแจ้ง'] || item['อาการเสีย'] || item['symptoms'] || '',
         purchaseDate: item['วันที่ซื้อสินค้า'] || item['purchaseDate'] || '',
         warrantyDuration: Number(item['ระยะเวลาการรับประกัน(เดือน)']) || 12,
-        claimDestination: item['สถานที่ส่งเคลม'] || item['claimDestination'] || '',
-        claimBuilding: item['อาคารที่แจ้งเคลม'] || item['claimBuilding'] || '',
+        claimDestination: item['ที่อยู่ตัวแทนจำหน่าย'] || item['สถานที่ส่งเคลม'] || item['claimDestination'] || '',
+        claimBuilding: item['ที่อยู่สำหรับส่งสินค้าเคลม'] || item['อาคารที่แจ้งเคลม'] || item['claimBuilding'] || '',
         claimReceivedDate: item['วันที่รับสินค้าเคลม'] || item['claimReceivedDate'] || '',
         claimSentDate: item['วันส่งสินค้าเคลม'] || item['claimSentDate'] || '',
         inspector: item['ชื่อผู้ปฏิบัติงาน'] || item['ชื่อผู้ตรวจสอบ'] || item['inspector'] || '',
@@ -698,7 +721,7 @@ export default function ProductClaimsTab({
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('serialNumber')}>ซีเรียลนัมเบอร์ {sortConfig.key === 'serialNumber' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('purchaseDate')}>ข้อมูลประกันสินค้า {sortConfig.key === 'purchaseDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">ประกันที่เหลืออยู่</th>
-                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimDestination')}>สถานที่ส่ง / อาคาร {sortConfig.key === 'claimDestination' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimDestination')}>ตัวแทนจำหน่าย / ที่อยู่ {sortConfig.key === 'claimDestination' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimReceivedDate')}>วันที่รับ / ส่งเคลม {sortConfig.key === 'claimReceivedDate' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                 <th className="py-2 px-2.5">เอกสาร/รูปถ่าย</th>
                 <th className="py-2 px-2.5 cursor-pointer hover:bg-slate-200" onClick={() => handleSort('claimStatus')}>สถานะเคลม {sortConfig.key === 'claimStatus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
@@ -730,6 +753,7 @@ export default function ProductClaimsTab({
                           {isClaimOverdue && <AlertCircle className="w-3.5 h-3.5 text-purple-500 shrink-0" title="สินค้าเคลมค้างส่งเกิน 30 วัน!" />}
                           <div className="font-bold text-slate-900">{claim.customerCompany}</div>
                         </div>
+                        {claim.projectName && <div className="text-[10px] text-indigo-600 font-bold mt-0.2">โครงการ: {claim.projectName}</div>}
                         {claim.claimNo && <div className="text-[10px] text-blue-600 font-bold mt-0.2">{claim.claimNo}</div>}
                         <div className="text-[10px] text-slate-550 mt-0.2">{claim.contactName} ({claim.contactPhone})</div>
                       </td>
@@ -762,7 +786,8 @@ export default function ProductClaimsTab({
 
                       {/* Destinations */}
                       <td className="py-1.5 px-2.5">
-                        <div className="font-semibold text-slate-800">{claim.claimDestination || '-'}</div>
+                        <div className="font-semibold text-slate-800">{claim.partnerCompany || '-'}</div>
+                        <div className="text-slate-400 text-[10px] mt-0.2">{claim.claimDestination || '-'}</div>
                         <div className="text-slate-400 text-[10px] mt-0.2">{claim.claimBuilding || '-'}</div>
                       </td>
 
@@ -931,6 +956,16 @@ export default function ProductClaimsTab({
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ชื่อโครงการ (ถ้ามี)</label>
+                    <input
+                      type="text"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      placeholder="เช่น โครงการติดตั้งกล้อง CCTV"
+                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">ที่อยู่บริษัทลูกค้า</label>
                     <textarea
                       value={customerAddress}
@@ -1056,6 +1091,16 @@ export default function ProductClaimsTab({
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">อาการเสียที่รับแจ้ง</label>
+                    <textarea
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
+                      placeholder="ระบุอาการเสียที่รับแจ้ง..."
+                      rows={2}
+                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded focus:outline-none"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-[10px] font-bold text-gray-700 mb-1">วันที่ซื้อสินค้า</label>
                     <input
                       type="date"
@@ -1080,17 +1125,96 @@ export default function ProductClaimsTab({
                 <div className="space-y-3 bg-gray-50/50 p-3 rounded-lg border border-gray-100">
                   <h4 className="font-bold text-xs text-gray-900 border-b border-gray-200 pb-1">ข้อมูลจัดส่งและสถานะเคลม</h4>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">บริษัทคู่ค้า (ถ้ามี)</label>
-                    <input
-                      type="text"
-                      value={partnerCompany}
-                      onChange={(e) => setPartnerCompany(e.target.value)}
-                      placeholder="ไม่มี"
-                      className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
-                    />
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">
+                      บริษัทตัวแทนจำหน่าย {distributors.length > 0 && <span className="text-blue-600 font-normal ml-1">(เลือกจากฐานข้อมูล)</span>}
+                    </label>
+                    {distributors.length > 0 ? (
+                      <div className="flex gap-1.5">
+                        <select
+                          value={distributors.some(d => d.companyName === partnerCompany) ? partnerCompany : ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const match = distributors.find(d => d.companyName === val);
+                              if (match) {
+                                setPartnerCompany(match.companyName);
+                                setClaimDestination(match.address || '');
+                                setClaimBuilding(match.claimAddress || '');
+                                if (match.claimContacts && match.claimContacts.length > 0) {
+                                  setDistributorContactName(match.claimContacts[0].name || '');
+                                } else {
+                                  setDistributorContactName('');
+                                }
+                              }
+                            } else {
+                              setPartnerCompany('');
+                            }
+                          }}
+                          className="w-1/2 text-xs px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800"
+                        >
+                          <option value="">-- เลือก --</option>
+                          {distributors.map((d, idx) => (
+                            <option key={idx} value={d.companyName}>{d.companyName}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={partnerCompany}
+                          onChange={(e) => setPartnerCompany(e.target.value)}
+                          placeholder="พิมพ์ชื่อ..."
+                          className="w-1/2 text-xs px-2 py-1.5 border border-gray-300 rounded"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={partnerCompany}
+                        onChange={(e) => setPartnerCompany(e.target.value)}
+                        placeholder="ไม่มี"
+                        className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                      />
+                    )}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">สถานที่ส่งเคลม</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ผู้ติดต่อสำหรับการเคลม</label>
+                    {(() => {
+                      const selectedDist = distributors.find(d => d.companyName === partnerCompany);
+                      if (selectedDist && selectedDist.claimContacts && selectedDist.claimContacts.length > 0) {
+                        return (
+                          <div className="flex gap-1.5">
+                            <select
+                              value={selectedDist.claimContacts.some(c => c.name === distributorContactName) ? distributorContactName : ""}
+                              onChange={(e) => setDistributorContactName(e.target.value)}
+                              className="w-1/2 text-xs px-2 py-1.5 border border-gray-300 rounded bg-white text-gray-800"
+                            >
+                              <option value="">-- เลือกผู้ติดต่อ --</option>
+                              {selectedDist.claimContacts.map((c, i) => (
+                                <option key={i} value={c.name}>{c.name}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={distributorContactName}
+                              onChange={(e) => setDistributorContactName(e.target.value)}
+                              placeholder="พิมพ์ชื่อ..."
+                              className="w-1/2 text-xs px-2 py-1.5 border border-gray-300 rounded"
+                            />
+                          </div>
+                        );
+                      }
+                      return (
+                        <input
+                          type="text"
+                          value={distributorContactName}
+                          onChange={(e) => setDistributorContactName(e.target.value)}
+                          placeholder="เช่น คุณสมชาย"
+                          className="w-full text-xs px-3 py-1.5 border border-gray-300 rounded"
+                        />
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ที่อยู่ตัวแทนจำหน่าย</label>
                     <input
                       type="text"
                       value={claimDestination}
@@ -1100,7 +1224,7 @@ export default function ProductClaimsTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">อาคารที่แจ้งเคลม</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">ที่อยู่สำหรับส่งสินค้าเคลม</label>
                     <input
                       type="text"
                       value={claimBuilding}
@@ -1383,25 +1507,39 @@ export default function ProductClaimsTab({
                   <div className="space-y-1">
                     <div className="text-gray-500 font-bold uppercase text-[9px]">ประวัติการซื้อ & ประกัน</div>
                     <div><strong>บริษัทเจ้าของ:</strong> {printableClaimDoc.customerCompany}</div>
+                    {printableClaimDoc.projectName && (
+                      <div><strong>ชื่อโครงการ:</strong> {printableClaimDoc.projectName}</div>
+                    )}
                     <div><strong>ที่อยู่ผู้ซื้อ:</strong> {printableClaimDoc.customerAddress || '-'}</div>
                     <div><strong>วันที่สั่งซื้อสินค้า:</strong> {printableClaimDoc.purchaseDate || '-'}</div>
                     <div><strong>ประกันคงเหลือ:</strong> {calculateRemainingWarranty(printableClaimDoc.purchaseDate, printableClaimDoc.warrantyDuration)}</div>
                   </div>
                 </div>
 
+                {printableClaimDoc.symptoms && (
+                  <div className="bg-orange-50/50 p-4 border-b border-orange-100 text-[11px]">
+                    <div className="text-orange-800 font-bold uppercase text-[9px] mb-1">อาการเสียที่รับแจ้ง</div>
+                    <div>{printableClaimDoc.symptoms}</div>
+                  </div>
+                )}
+
                 {/* Claim Logistics */}
-                <div className="grid grid-cols-3 gap-4 border-b border-gray-100 pb-4 text-[11px]">
+                <div className="grid grid-cols-4 gap-4 border-b border-gray-100 pb-4 text-[11px] pt-4">
                   <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">สถานที่ส่งเคลม</div>
+                    <div className="text-gray-400 font-bold uppercase text-[9px]">บริษัทตัวแทนจำหน่าย</div>
+                    <div className="font-semibold">{printableClaimDoc.partnerCompany || 'ไม่มี'}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 font-bold uppercase text-[9px]">ที่อยู่ตัวแทนจำหน่าย</div>
                     <div className="font-semibold">{printableClaimDoc.claimDestination || '-'}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">อาคารที่แจ้งเคลม</div>
+                    <div className="text-gray-400 font-bold uppercase text-[9px]">ที่อยู่สำหรับส่งสินค้าเคลม</div>
                     <div className="font-semibold">{printableClaimDoc.claimBuilding || '-'}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 font-bold uppercase text-[9px]">พนักงานคู่ร่วม</div>
-                    <div className="font-semibold">{printableClaimDoc.partnerCompany || 'ไม่มี'}</div>
+                    <div className="text-gray-400 font-bold uppercase text-[9px]">ผู้ติดต่อสำหรับการเคลม</div>
+                    <div className="font-semibold">{printableClaimDoc.distributorContactName || '-'}</div>
                   </div>
                 </div>
 
