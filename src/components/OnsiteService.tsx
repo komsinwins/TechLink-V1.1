@@ -458,7 +458,7 @@ export default function OnsiteServiceTab({
   const handleExportCSV = () => {
     const headers = [
       'เลขที่ใบงาน', 'ชื่อบริษัทลูกค้า', 'ที่อยู่บริษัทลูกค้า', 'ชื่อผู้ติดต่อ', 'รายละเอียดผู้ติดต่อ', 
-      'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'หมายเลขเอกสารอ้างอิง', 'ประเภทบริการ', 'สถานที่ปฏิบัติงาน', 
+      'เบอร์โทรผู้ติดต่อ', 'อีเมลผู้ติดต่อ', 'บริษัทคู่ค้า', 'หมายเลขเอกสารอ้างอิง', 'ประเภทบริการ', 'พื้นที่ปฏิบัติงานหรือสถานที่ปฏิบัติงาน', 
       'ผู้ปฏิบัติงาน 1', 'ผู้ปฏิบัติงาน 2', 'พนักงานขาย', 'วันที่รับแจ้ง', 'วันที่เข้าปฏิบัติงาน', 
       'วันที่แก้ไขเสร็จงาน', 'สถานะ', 'บรรยายรับแจ้งอาการ', 'ขั้นตอนการตรวจสอบ', 'สาเหตุ', 'การแก้ไข', 'หมายเหตุ'
     ];
@@ -473,7 +473,7 @@ export default function OnsiteServiceTab({
       'บริษัทคู่ค้า': j.partnerCompany,
       'หมายเลขเอกสารอ้างอิง': j.referenceDocument || '',
       'ประเภทบริการ': j.serviceType,
-      'สถานที่ปฏิบัติงาน': j.serviceLocation,
+      'พื้นที่ปฏิบัติงานหรือสถานที่ปฏิบัติงาน': j.serviceLocation,
       'ผู้ปฏิบัติงาน 1': j.operator1,
       'ผู้ปฏิบัติงาน 2': j.operator2,
       'พนักงานขาย': j.salesRep,
@@ -509,7 +509,7 @@ export default function OnsiteServiceTab({
         contactEmail: item['อีเมลผู้ติดต่อ'] || item['contactEmail'] || '',
         partnerCompany: item['บริษัทคู่ค้า'] || item['partnerCompany'] || '',
         serviceType: item['ประเภทบริการ'] || item['serviceType'] || '',
-        serviceLocation: item['สถานที่ปฏิบัติงาน'] || item['serviceLocation'] || '',
+        serviceLocation: item['พื้นที่ปฏิบัติงานหรือสถานที่ปฏิบัติงาน'] || item['สถานที่ปฏิบัติงาน'] || item['serviceLocation'] || '',
         operator1: item['ผู้ปฏิบัติงาน 1'] || item['operator1'] || '',
         operator2: item['ผู้ปฏิบัติงาน 2'] || item['operator2'] || '',
         salesRep: item['พนักงานขาย'] || item['salesRep'] || '',
@@ -1100,7 +1100,7 @@ export default function OnsiteServiceTab({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1">สถานที่ปฏิบัติงาน</label>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1">พื้นที่ปฏิบัติงานหรือสถานที่ปฏิบัติงาน</label>
                     <input
                       type="text"
                       value={serviceLocation}
