@@ -69,7 +69,7 @@ export interface OnsiteService {
   status: 'Open' | 'In Progress' | 'Pending' | 'Resolved';
   productType?: string; // Product type added in work assignment
   warrantyExpiryDate?: string; // YYYY-MM-DD
-  photos: ServicePhoto[]; // Max 4 photos
+  photos: ServicePhoto[]; // Unlimited photos
   signedReportUrl: string; // Base64 file string for customer-signed PDF/report
   signedReportName: string; // Name of the uploaded file
   signedReportFileId?: string; // Google Drive file ID

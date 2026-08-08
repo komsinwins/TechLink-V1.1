@@ -267,11 +267,6 @@ export default function OnsiteServiceTab({
     const files = e.target.files;
     if (!files) return;
 
-    if (photos.length + files.length > 4) {
-      alert('แนบรูปถ่ายได้ไม่เกิน 4 รูป');
-      return;
-    }
-
     const token = await getAccessToken();
     if (!token) {
       alert('ไม่พบสิทธิ์การเชื่อมต่อ Google Drive (เซสชันอาจหมดอายุจากการรีเฟรชหน้าเว็บ) \n\nกรุณากด "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง และอย่าลืมติ๊กถูกอนุญาตสิทธิ์ Google Drive ในหน้าต่างเข้าสู่ระบบ');
@@ -1295,18 +1290,18 @@ export default function OnsiteServiceTab({
                   <div className="flex items-center gap-2">
                     <ImageIcon className="text-blue-600 w-5 h-5" />
                     <div>
-                      <h4 className="font-bold text-xs text-gray-900">แนบรูปภาพถ่ายการปฏิบัติงาน (สูงสุด 4 รูปภาพ)</h4>
+                      <h4 className="font-bold text-xs text-gray-900">แนบรูปภาพถ่ายการปฏิบัติงาน (อัปโหลดได้ไม่จำกัด - แสดงหน้าละ 6 รูป)</h4>
                       <p className="text-[10px] text-gray-500">เก็บประวัติรูปถ่ายปฏิบัติงานไว้ 30 วันก่อนทำการลบออกจาก Firebase อัตโนมัติเพื่อลดขนาดฐานข้อมูล</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    disabled={photos.length >= 4}
+                    disabled={isUploading}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded text-xs font-bold hover:bg-gray-50 cursor-pointer disabled:opacity-50 shrink-0"
                   >
                     <Upload className="w-4 h-4 text-blue-600" />
-                    อัปโหลดรูปภาพ
+                    อัปโหลดรูปภาพ {photos.length > 0 && `(${photos.length})`}
                   </button>
                   <input
                     type="file"
@@ -1319,24 +1314,23 @@ export default function OnsiteServiceTab({
                 </div>
 
                 {photos.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
                     {photos.map((p, idx) => (
-                      <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200 relative group flex flex-col justify-between">
+                      <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200 relative group flex flex-col justify-between shadow-2xs">
                         <button
                           type="button"
                           onClick={() => handleRemovePhoto(idx)}
-                          className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full text-xs font-bold hover:bg-red-600 shadow transition-colors z-10"
+                          className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center hover:bg-red-600 shadow transition-colors z-10 cursor-pointer"
                         >
                           &times;
                         </button>
                         <div className="aspect-video w-full rounded overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-100">
                           <img src={p.url} alt={`Upload ${idx+1}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
                         </div>
-                        <div className="mt-2.5">
+                        <div className="mt-2">
                           <label className="block text-[9px] font-bold text-gray-500 mb-0.5">คำอธิบายภาพ {idx+1}</label>
                           <input
                             type="text"
-                            required
                             placeholder="พิมพ์คําบรรยายรูปถ่าย..."
                             value={p.caption}
                             onChange={(e) => handleCaptionChange(idx, e.target.value)}
@@ -1680,31 +1674,61 @@ export default function OnsiteServiceTab({
                   </div>
                 )}
 
-                {/* Photo Pages (Pages 2, 3, 4 sequentially as requested) */}
-                {processedPhotos && processedPhotos.length > 0 && (
-                  <div className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-6 shrink-0 w-[794px] min-h-[1123px]">
-                    <h3 className="font-extrabold text-blue-900 text-sm border-b border-blue-100 pb-1.5 flex items-center gap-1">
-                      <ImageIcon className="w-4 h-4 text-blue-600" />
-                      <span>รูปถ่ายบันทึกการปฏิบัติงาน</span>
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {processedPhotos.map((p, pIdx) => (
-                        <div key={pIdx} className="border border-gray-200 p-3 rounded bg-gray-50 text-center space-y-2">
-                          <div className="font-bold text-gray-500 text-[10px] uppercase">รูปถ่ายหน้า {pIdx + 2}</div>
-                          <div className="aspect-video w-full rounded overflow-hidden bg-white border border-gray-100 flex items-center justify-center max-h-48">
-                            {p.url ? (
-                              <img src={p.url} alt={`Preview ${pIdx + 2}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="text-gray-400 text-xs">ไม่มีรูปภาพ</div>
-                            )}
-                          </div>
-                          <div className="font-bold text-gray-800 text-[11px] bg-white p-2 rounded shadow-sm">{p.caption || 'ไม่มีคำบรรยายใต้ภาพ'}</div>
+                {/* Photo Pages (6 photos per page) */}
+                {(() => {
+                  if (!processedPhotos || processedPhotos.length === 0) return null;
+                  const photoChunks: ServicePhoto[][] = [];
+                  for (let i = 0; i < processedPhotos.length; i += 6) {
+                    photoChunks.push(processedPhotos.slice(i, i + 6));
+                  }
+
+                  return photoChunks.map((chunk, pageIdx) => (
+                    <div key={pageIdx} className="pdf-page bg-white p-10 shadow-sm border border-gray-200 text-xs text-gray-800 leading-relaxed space-y-5 shrink-0 w-[794px] min-h-[1123px] flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-center border-b border-blue-100 pb-2 mb-4">
+                          <h3 className="font-extrabold text-blue-900 text-sm flex items-center gap-1.5">
+                            <ImageIcon className="w-4 h-4 text-blue-600" />
+                            <span>รูปถ่ายบันทึกการปฏิบัติงาน</span>
+                          </h3>
+                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
+                            หน้า {pageIdx + 2} (รูปที่ {pageIdx * 6 + 1} - {Math.min((pageIdx + 1) * 6, processedPhotos.length)} จาก {processedPhotos.length})
+                          </span>
                         </div>
-                      ))}
+                        
+                        <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+                          {chunk.map((p, itemIdx) => {
+                            const globalIdx = pageIdx * 6 + itemIdx;
+                            return (
+                              <div key={itemIdx} className="border border-gray-200 p-3 rounded-lg bg-gray-50/80 text-center space-y-2 flex flex-col justify-between shadow-2xs">
+                                <div className="font-bold text-gray-600 text-[10px] flex justify-between items-center px-1">
+                                  <span>รูปถ่ายที่ {globalIdx + 1}</span>
+                                  {p.timestamp && (
+                                    <span className="text-[9px] font-normal text-gray-400">
+                                      {new Date(p.timestamp).toLocaleDateString('th-TH')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="aspect-video w-full rounded overflow-hidden bg-white border border-gray-200 flex items-center justify-center max-h-44">
+                                  {p.url ? (
+                                    <img src={p.url} alt={`Photo ${globalIdx + 1}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="text-gray-400 text-xs">ไม่มีรูปภาพ</div>
+                                  )}
+                                </div>
+                                <div className="font-bold text-gray-800 text-[10px] bg-white p-2 rounded border border-gray-200 shadow-2xs min-h-[32px] flex items-center justify-center">
+                                  {p.caption || 'ไม่มีคำบรรยายใต้ภาพ'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="text-center text-[10px] text-gray-400 border-t border-gray-100 pt-2">
+                        เอกสารรายงานการปฏิบัติงาน Onsite Service - {exportTargetJob?.jobNo || ''}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ));
+                })()}
 
               </div>
             </div>
