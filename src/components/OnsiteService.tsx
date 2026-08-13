@@ -601,6 +601,7 @@ export default function OnsiteServiceTab({
     const search = searchTerm.toLowerCase();
     return (
       j.jobNo?.toLowerCase().includes(search) ||
+      j.referenceDocument?.toLowerCase().includes(search) ||
       j.customerCompany?.toLowerCase().includes(search) ||
       j.contactName?.toLowerCase().includes(search) ||
       j.operator1?.toLowerCase().includes(search) ||
@@ -701,7 +702,7 @@ export default function OnsiteServiceTab({
         <Search className="w-4 h-4 text-slate-400 shrink-0" />
         <input
           type="text"
-          placeholder="ค้นหาเลขใบงาน, ชื่อลูกค้า, ชื่อผู้ติดต่อ, ประเภทบริการ, หรือช่างผู้ตรวจงาน..."
+          placeholder="ค้นหาเลขใบงาน, หมายเลขเอกสารอ้างอิง, ชื่อลูกค้า, ชื่อผู้ติดต่อ, หรือช่าง..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full bg-transparent border-none text-xs focus:outline-none text-slate-800 placeholder-slate-400"
@@ -767,6 +768,9 @@ export default function OnsiteServiceTab({
                           {isOverdue && <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" title="งานค้างเกิน 15 วัน!" />}
                           <span>{job.jobNo}</span>
                         </div>
+                        {job.referenceDocument && (
+                          <div className="text-[10px] text-slate-500 font-normal mt-0.5">อ้างอิง: {job.referenceDocument}</div>
+                        )}
                       </td>
 
                       {/* Customer Company & contact */}
@@ -1502,6 +1506,9 @@ export default function OnsiteServiceTab({
                       <div className="text-right">
                         <div className="text-gray-500 font-bold">หมายเลขใบงาน</div>
                         <div className="text-sm font-extrabold text-blue-700 font-mono mt-0.5">{exportTargetJob.jobNo}</div>
+                        {exportTargetJob.referenceDocument && (
+                          <div className="text-[10px] font-semibold text-gray-500 mt-0.5">อ้างอิง: {exportTargetJob.referenceDocument}</div>
+                        )}
                       </div>
                     </div>
 
@@ -1522,8 +1529,8 @@ export default function OnsiteServiceTab({
                       </div>
                     </div>
 
-                    {/* Operations & Dates (No issue date and no Sales rep as requested) */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[11px] border-b border-gray-100 pb-4">
+                    {/* Operations & Dates */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-[11px] border-b border-gray-100 pb-4">
                       <div>
                         <div className="text-gray-400 font-bold uppercase text-[9px]">วันที่รับแจ้ง</div>
                         <div className="font-semibold">{exportTargetJob.receivedDate || '-'}</div>
@@ -1584,6 +1591,11 @@ export default function OnsiteServiceTab({
                       <div className="text-right">
                         <div className="text-gray-500 font-bold text-[10px] uppercase">หมายเลขเอกสาร / Document No</div>
                         <div className="text-sm font-extrabold text-emerald-700 font-mono mt-0.5">{exportTargetJob.jobNo}</div>
+                        {exportTargetJob.referenceDocument && (
+                          <div className="text-[10px] font-bold text-emerald-800 mt-0.5 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80 inline-block">
+                            เอกสารอ้างอิง: {exportTargetJob.referenceDocument}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1598,6 +1610,7 @@ export default function OnsiteServiceTab({
                       <div className="space-y-1">
                         <div className="text-emerald-800 font-extrabold uppercase text-[10px]">รายละเอียดการให้บริการ (Service Summary)</div>
                         <div><strong>ประเภทการบริการ:</strong> {exportTargetJob.serviceType}</div>
+                        <div><strong>หมายเลขเอกสารอ้างอิง:</strong> {exportTargetJob.referenceDocument || '-'}</div>
                         <div><strong>วันที่เข้าปฏิบัติงาน:</strong> {exportTargetJob.startServiceDate || '-'}</div>
                         <div><strong>ผู้ปฏิบัติงานหลัก:</strong> {[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}</div>
                       </div>
