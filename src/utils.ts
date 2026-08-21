@@ -187,6 +187,36 @@ export function exportToExcelTable(elementId: string, filename: string) {
   document.body.removeChild(link);
 }
 
+// Convert any Google Drive URL (or external image URL) to a direct CDN / thumbnail image URL
+export function getDriveDirectImageUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+
+  const trimmed = url.trim();
+  let fileId = '';
+  
+  // 1. Standard /file/d/(ID) or /d/(ID)
+  const dMatch = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
+  if (dMatch && dMatch[1]) {
+    fileId = dMatch[1];
+  } else {
+    // 2. Query param like ?id=(ID) or &id=(ID)
+    const idMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+    if (idMatch && idMatch[1]) {
+      fileId = idMatch[1];
+    } else if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) {
+      fileId = trimmed;
+    }
+  }
+
+  if (fileId) {
+    // Google Direct CDN for Drive files
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+
+  return url;
+}
+
 // Convert any Google Drive URL (or external image URL) to a Base64 string to bypass CORS issues in html2canvas/jsPDF
 export async function convertDriveUrlToBase64(url: string, token: string | null): Promise<string> {
   if (!url) return '';
@@ -213,7 +243,16 @@ export async function convertDriveUrlToBase64(url: string, token: string | null)
     }
   }
 
-  // If we have a fileId and a token, fetch via the Google Drive API v3
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // 1. If we have a fileId and a token, fetch via the Google Drive API v3
   if (fileId && token) {
     try {
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -223,52 +262,52 @@ export async function convertDriveUrlToBase64(url: string, token: string | null)
       });
       if (res.ok) {
         const blob = await res.blob();
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        return await blobToBase64(blob);
       } else {
         console.warn(`convertDriveUrlToBase64: Google Drive API returned status ${res.status} for file ${fileId}`);
       }
     } catch (e) {
-      console.error(`convertDriveUrlToBase64: Error fetching file ${fileId} from Drive API:`, e);
+      console.warn(`convertDriveUrlToBase64: Error fetching file ${fileId} from Drive API:`, e);
     }
   }
 
-  // If we have a fileId, try the direct Google Drive download endpoint
+  // 2. Try direct googleusercontent CDN fetch
   if (fileId) {
     try {
-      const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+      const res = await fetch(`https://lh3.googleusercontent.com/d/${fileId}`, { mode: 'cors' });
       if (res.ok) {
         const blob = await res.blob();
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
+        return await blobToBase64(blob);
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    try {
+      const res = await fetch(`https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`, { mode: 'cors' });
+      if (res.ok) {
+        const blob = await res.blob();
+        return await blobToBase64(blob);
       }
     } catch (err) {
       // ignore
     }
   }
 
-  // Fallback: Direct fetch of the url
+  // 3. Fallback: Direct fetch of the url
   try {
     const res = await fetch(url, { mode: 'cors' });
     if (res.ok) {
       const blob = await res.blob();
-      return await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      return await blobToBase64(blob);
     }
   } catch (e) {
-    // Return original url if fetch fails
+    // Return direct image link if fetch fails
+  }
+
+  // If conversion fails, return a directly renderable image URL rather than an unrenderable webpage URL
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
 
   return url;
