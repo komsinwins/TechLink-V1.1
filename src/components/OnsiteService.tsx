@@ -63,15 +63,16 @@ function splitTextIntoParagraphChunks(text: string, maxChunkLength: number = 650
 // Estimate rendering height weight of a section block
 function estimateSectionWeight(sec: ReportSectionData): number {
   const lineCount = sec.content.split('\n').reduce((acc, line) => {
-    return acc + Math.max(1, Math.ceil(line.length / 65));
+    return acc + Math.max(1, Math.ceil(line.length / 60));
   }, 0);
-  return 55 + (lineCount * 19);
+  return 50 + (lineCount * 18);
 }
 
 // Dynamic content section paginator: generates 1, 2, 3... pages according to content volume
 function buildReportContentPages(
   job: OnsiteService,
-  viewMode: 'full' | 'simple'
+  viewMode: 'full' | 'simple',
+  includeSignatures: boolean = true
 ): ReportSectionData[][] {
   const rawSections: ReportSectionData[] = [];
 
@@ -80,7 +81,7 @@ function buildReportContentPages(
       rawSections.push({
         id: 'symptoms',
         num: '1',
-        title: 'บรรยายอาการรับแจ้ง / ปัญหาที่พบ',
+        title: 'อาการรับแจ้ง / ปัญหาที่พบ',
         titleEn: 'Reported Symptoms & Issue Description',
         content: job.symptoms.trim()
       });
@@ -89,7 +90,7 @@ function buildReportContentPages(
       rawSections.push({
         id: 'diagnosis',
         num: '2',
-        title: 'ขั้นตอนและผลการตรวจสอบ',
+        title: 'ขั้นตอนการตรวจสอบและผลการวิเคราะห์',
         titleEn: 'Inspection Steps & Diagnostic Findings',
         content: job.diagnosis.trim()
       });
@@ -107,7 +108,7 @@ function buildReportContentPages(
       rawSections.push({
         id: 'actionTaken',
         num: '4',
-        title: 'รายละเอียดการแก้ไขปัญหา / การปฏิบัติงาน',
+        title: 'รายละเอียดการแก้ไขปัญหา / ผลการปฏิบัติงาน',
         titleEn: 'Corrective Actions & Resolution Details',
         content: job.actionTaken.trim()
       });
@@ -116,7 +117,7 @@ function buildReportContentPages(
       rawSections.push({
         id: 'remarks',
         num: '5',
-        title: 'หมายเหตุและข้อเสนอแนะเพิ่มเติม',
+        title: 'หมายเหตุและคำแนะนำเพิ่มเติม',
         titleEn: 'Remarks & Recommendations',
         content: job.remarks.trim()
       });
@@ -183,8 +184,8 @@ function buildReportContentPages(
   // Split very long individual text blocks
   const expanded: ReportSectionData[] = [];
   for (const s of rawSections) {
-    if (s.content.length > 600) {
-      const parts = splitTextIntoParagraphChunks(s.content, 550);
+    if (s.content.length > 550) {
+      const parts = splitTextIntoParagraphChunks(s.content, 500);
       if (parts.length <= 1) {
         expanded.push(s);
       } else {
@@ -205,7 +206,8 @@ function buildReportContentPages(
 
   // Check if everything fits comfortably on a single page
   const totalWeight = expanded.reduce((a, b) => a + estimateSectionWeight(b), 0);
-  if (totalWeight <= 460) {
+  const singlePageCapacity = includeSignatures ? 490 : 680;
+  if (totalWeight <= singlePageCapacity) {
     return [expanded];
   }
 
@@ -216,7 +218,7 @@ function buildReportContentPages(
 
   for (const sec of expanded) {
     const w = estimateSectionWeight(sec);
-    const limit = isFirst ? 530 : 830;
+    const limit = isFirst ? (includeSignatures ? 540 : 710) : (includeSignatures ? 820 : 930);
     if (curPage.length > 0 && curHeight + w > limit) {
       pages.push(curPage);
       curPage = [sec];
@@ -259,6 +261,7 @@ export default function OnsiteServiceTab({
   // PDF export modal view
   const [exportTargetJob, setExportTargetJob] = useState<OnsiteService | null>(null);
   const [reportViewMode, setReportViewMode] = useState<'full' | 'simple'>('full');
+  const [includeSignatures, setIncludeSignatures] = useState<boolean>(true);
 
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [processedPhotos, setProcessedPhotos] = useState<ServicePhoto[]>([]);
@@ -1671,7 +1674,7 @@ export default function OnsiteServiceTab({
 
       {/* Exporter Printable Preview Modal for Job Service */}
       {exportTargetJob && (() => {
-        const contentPages = buildReportContentPages(exportTargetJob, reportViewMode);
+        const contentPages = buildReportContentPages(exportTargetJob, reportViewMode, includeSignatures);
         const totalContentPages = contentPages.length;
 
         // Group photos into pages of 6 photos each
@@ -1687,15 +1690,16 @@ export default function OnsiteServiceTab({
         return (
           <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col my-8 max-h-[90vh]">
-              <div className="bg-blue-700 text-white p-4 font-bold flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
+              <div className="bg-blue-700 text-white p-4 font-bold flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-200" />
                   <span className="text-sm">พิมพ์ / ส่งออกเอกสารใบงาน (PDF Dynamic Multi-Page)</span>
-                  <span className="bg-blue-800 text-blue-100 text-xs px-2 py-0.5 rounded border border-blue-500">
-                    รวมทั้งหมด {grandTotalPages} หน้า (เนื้อหา {totalContentPages} หน้า {totalPhotoPages > 0 ? `+ ภาคผนวกรูป ${totalPhotoPages} หน้า` : ''})
+                  <span className="bg-blue-800 text-blue-100 text-xs px-2 py-0.5 rounded border border-blue-500 hidden sm:inline-block">
+                    รวม {grandTotalPages} หน้า (เนื้อหา {totalContentPages} หน้า {totalPhotoPages > 0 ? `+ ภาคผนวกรูป ${totalPhotoPages} หน้า` : ''})
                   </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  {/* View Mode Switch */}
                   <div className="flex bg-blue-800/80 p-0.5 rounded-lg border border-blue-600 text-xs">
                     <button
                       type="button"
@@ -1712,17 +1716,38 @@ export default function OnsiteServiceTab({
                       ใบงาน
                     </button>
                   </div>
-                  <button onClick={() => setExportTargetJob(null)} className="text-white hover:text-white/80 text-xl font-bold px-1">&times;</button>
+
+                  {/* Toggle Signatures Section */}
+                  <button
+                    type="button"
+                    onClick={() => setIncludeSignatures(!includeSignatures)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer select-none ${
+                      includeSignatures
+                        ? 'bg-blue-800 text-white border-blue-400 shadow-xs ring-1 ring-blue-400/50'
+                        : 'bg-blue-900/60 text-blue-200 border-blue-600/70 hover:text-white'
+                    }`}
+                    title="คลิกเพื่อเลือกว่าจะแสดงหรือซ่อนส่วนลงนาม (ลายเซ็นช่างและลูกค้า)"
+                  >
+                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] font-black ${
+                      includeSignatures ? 'bg-emerald-500 border-emerald-400 text-white' : 'border-gray-400 bg-transparent'
+                    }`}>
+                      {includeSignatures ? '✓' : ''}
+                    </div>
+                    <PenTool className="w-3.5 h-3.5 text-blue-200" />
+                    <span>ส่วนลงนาม {includeSignatures ? '(แสดง)' : '(ซ่อน)'}</span>
+                  </button>
+
+                  <button onClick={() => setExportTargetJob(null)} className="text-white hover:text-white/80 text-xl font-bold px-1 cursor-pointer">&times;</button>
                 </div>
               </div>
 
               {/* Document preview container */}
-              <div className="p-6 overflow-y-auto bg-gray-200 flex-1">
+              <div className="p-6 overflow-y-auto bg-slate-200/90 flex-1">
                 {/* Printable container rendered into A4 dimensions */}
                 <div 
                   id="printable-job-service-doc" 
                   className="flex flex-col gap-8 items-center select-text"
-                  style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+                  style={{ fontFamily: 'Inter, "Noto Sans Thai", system-ui, sans-serif' }}
                 >
                   {/* DYNAMIC CONTENT PAGES (Page 1, Page 2, etc.) */}
                   {contentPages.map((pageSections, contentPageIdx) => {
@@ -1733,208 +1758,342 @@ export default function OnsiteServiceTab({
                     return (
                       <div 
                         key={`content-page-${contentPageIdx}`}
-                        className="pdf-page bg-white p-9 shadow-md border border-gray-300 text-xs text-gray-800 leading-relaxed shrink-0 w-[794px] min-h-[1123px] max-h-[1123px] h-[1123px] flex flex-col justify-between box-border overflow-hidden select-text"
+                        className="pdf-page bg-white p-8 sm:p-9 shadow-lg border border-slate-300 text-xs text-slate-800 leading-relaxed shrink-0 w-[794px] min-h-[1123px] max-h-[1123px] h-[1123px] flex flex-col justify-between box-border overflow-hidden select-text"
                       >
                         {/* Top Content Area */}
                         <div>
                           {isFirstPage ? (
                             /* FIRST PAGE HEADER */
                             reportViewMode === 'full' ? (
-                              <div className="space-y-4 mb-3">
-                                {/* Modern Blue Header */}
-                                <div className="border-b-2 border-blue-600 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded tracking-wider">WSS SERVICE</div>
-                                      <h1 className="text-lg font-extrabold text-blue-900">รายงานสรุปการบริการ</h1>
+                              <div className="space-y-3 mb-3">
+                                {/* Corporate Header Banner */}
+                                <div className="border-b-2 border-blue-700 pb-3 flex justify-between items-start gap-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="bg-gradient-to-br from-blue-700 to-blue-900 text-white font-black text-sm w-12 h-12 rounded-xl flex items-center justify-center shadow-xs shrink-0 tracking-wider">
+                                      WSS
                                     </div>
-                                    <p className="text-gray-600 font-bold mt-0.5 text-[11px]">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุง (Technical Support & Service)</p>
-                                    <p className="text-gray-500 text-[10px] mt-0.5">
-                                      Email: <span className="font-semibold text-blue-700">wssservice.wins@gmail.com</span> | โทร: <span className="font-semibold text-blue-700">085 502 9624</span>
-                                    </p>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h1 className="text-xl font-extrabold text-blue-950 tracking-tight">รายงานสรุปการบริการ</h1>
+                                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded uppercase tracking-wider">SERVICE REPORT</span>
+                                      </div>
+                                      <p className="text-slate-600 font-bold text-[11px] mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและบริการลูกค้า (Technical Support & Service Operations)</p>
+                                      <div className="flex items-center gap-3 text-slate-500 text-[10px] mt-1">
+                                        <span>📧 <strong className="text-slate-700">wssservice.wins@gmail.com</strong></span>
+                                        <span>•</span>
+                                        <span>📞 <strong className="text-slate-700">085 502 9624</strong></span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-right">
-                                    <div className="text-gray-400 uppercase font-bold text-[9px] tracking-wider">เลขที่ใบงาน / JOB NO.</div>
-                                    <div className="text-base font-extrabold text-blue-700 font-mono">{exportTargetJob.jobNo}</div>
+
+                                  {/* Top Right Meta Badge Card */}
+                                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-right min-w-[200px] shadow-2xs">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">เลขที่ใบงาน (JOB NO.)</div>
+                                    <div className="text-base font-extrabold text-blue-700 font-mono tracking-tight">{exportTargetJob.jobNo}</div>
+                                    
                                     {exportTargetJob.referenceDocument && (
-                                      <div className="text-[10px] font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-0.5">
-                                        หมายเลขเอกสารอ้างอิง: {exportTargetJob.referenceDocument}
+                                      <div className="text-[10px] font-semibold text-slate-700 mt-0.5">
+                                        <span className="text-slate-400">อ้างอิง:</span> <span className="font-bold text-blue-900 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-200">{exportTargetJob.referenceDocument}</span>
                                       </div>
                                     )}
+
+                                    <div className="flex items-center justify-end gap-1.5 mt-1.5 pt-1.5 border-t border-slate-200 text-[10px]">
+                                      <span className="text-slate-400">สถานะ:</span>
+                                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
+                                        exportTargetJob.status === 'Resolved' 
+                                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                          : exportTargetJob.status === 'In Progress'
+                                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                                          : exportTargetJob.status === 'Pending'
+                                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                          : 'bg-slate-100 text-slate-700 border border-slate-300'
+                                      }`}>
+                                        {exportTargetJob.status === 'Resolved' ? 'แก้ไขเสร็จสิ้น' :
+                                         exportTargetJob.status === 'In Progress' ? 'กำลังดำเนินการ' :
+                                         exportTargetJob.status === 'Pending' ? 'รอดำเนินการ' : 'เปิดงาน'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Information Cards */}
+                                {/* Information Cards: 2 Columns Balanced */}
                                 <div className="grid grid-cols-2 gap-3">
                                   {/* Customer Info Card */}
-                                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] space-y-1">
-                                    <div className="text-blue-900 font-extrabold uppercase text-[10px] pb-1 border-b border-slate-200 flex items-center gap-1">
-                                      <span>ข้อมูลลูกค้า (Customer Details)</span>
+                                  <div className="bg-slate-50/80 p-3 rounded-lg border border-slate-200 text-[11px] shadow-2xs">
+                                    <div className="text-blue-950 font-bold uppercase text-[10.5px] pb-1.5 mb-2 border-b border-slate-200 flex items-center justify-between">
+                                      <span className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                                        <span>ข้อมูลลูกค้า (Customer Details)</span>
+                                      </span>
+                                      {exportTargetJob.partnerCompany && (
+                                        <span className="text-[9.5px] text-slate-500 font-normal truncate max-w-[150px]">คู่ค้า: {exportTargetJob.partnerCompany}</span>
+                                      )}
                                     </div>
-                                    <div><span className="text-gray-500 font-medium">บริษัท:</span> <strong className="text-gray-900">{exportTargetJob.customerCompany}</strong></div>
-                                    <div><span className="text-gray-500 font-medium">ที่อยู่:</span> <span className="text-gray-800">{exportTargetJob.customerAddress || '-'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">สถานที่ทำงาน:</span> <span className="text-gray-800">{exportTargetJob.serviceLocation || '-'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">ผู้ติดต่อ:</span> <span className="text-gray-800">{exportTargetJob.contactName} {exportTargetJob.contactPhone ? `(${exportTargetJob.contactPhone})` : ''}</span></div>
-                                    {exportTargetJob.contactEmail && (
-                                      <div><span className="text-gray-500 font-medium">อีเมล:</span> <span className="text-gray-800">{exportTargetJob.contactEmail}</span></div>
-                                    )}
+                                    <div className="space-y-1">
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">ชื่อบริษัท:</span>
+                                        <strong className="text-slate-900 font-bold truncate">{exportTargetJob.customerCompany}</strong>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">สถานที่ทำงาน:</span>
+                                        <span className="text-slate-800 truncate">{exportTargetJob.serviceLocation || exportTargetJob.customerAddress || '-'}</span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">ผู้ติดต่อ:</span>
+                                        <span className="text-slate-800 truncate">
+                                          <strong className="text-slate-900 font-semibold">{exportTargetJob.contactName || '-'}</strong>
+                                          {exportTargetJob.contactDetail ? ` (${exportTargetJob.contactDetail})` : ''}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">เบอร์โทรศัพท์:</span>
+                                        <span className="text-slate-800 font-semibold text-blue-800">{exportTargetJob.contactPhone || '-'}</span>
+                                      </div>
+                                      {exportTargetJob.contactEmail && (
+                                        <div className="flex items-baseline gap-1 text-[11px]">
+                                          <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">อีเมล:</span>
+                                          <span className="text-slate-800 truncate">{exportTargetJob.contactEmail}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* Service & Schedule Card */}
-                                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-[11px] space-y-1">
-                                    <div className="text-blue-900 font-extrabold uppercase text-[10px] pb-1 border-b border-slate-200 flex items-center justify-between">
-                                      <span>ข้อมูลการบริการ (Service Details)</span>
-                                      <span className="font-bold text-[9px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">
-                                        {exportTargetJob.status}
+                                  <div className="bg-slate-50/80 p-3 rounded-lg border border-slate-200 text-[11px] shadow-2xs">
+                                    <div className="text-blue-950 font-bold uppercase text-[10.5px] pb-1.5 mb-2 border-b border-slate-200 flex items-center justify-between">
+                                      <span className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                        <span>ข้อมูลการบริการ (Service Details)</span>
+                                      </span>
+                                      <span className="text-[9.5px] font-bold text-blue-700 bg-blue-100/70 px-1.5 py-0.5 rounded truncate max-w-[130px]">
+                                        {exportTargetJob.serviceType || 'Onsite Service'}
                                       </span>
                                     </div>
-                                    <div><span className="text-gray-500 font-medium">ประเภทบริการ:</span> <strong className="text-blue-800">{exportTargetJob.serviceType}</strong></div>
-                                    <div><span className="text-gray-500 font-medium">บริษัทคู่ค้า:</span> <span className="text-gray-800">{exportTargetJob.partnerCompany || 'ไม่มี'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">ผู้ปฏิบัติงาน:</span> <span className="text-gray-800">{[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">วันที่เข้าปฏิบัติงาน:</span> <span className="text-gray-800">{exportTargetJob.startServiceDate || '-'}</span> {exportTargetJob.resolutionDate && <span className="text-gray-500 text-[10px]">(เสร็จ: {exportTargetJob.resolutionDate})</span>}</div>
-                                    <div><span className="text-gray-500 font-medium">วันที่หมดประกัน:</span> <span className="text-gray-800">{exportTargetJob.warrantyExpireDate || '-'}</span></div>
+                                    <div className="space-y-1">
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">ประเภทสินค้า:</span>
+                                        <span className="text-slate-800 font-semibold truncate">{exportTargetJob.productType || '-'}</span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">ผู้ปฏิบัติงาน:</span>
+                                        <span className="text-slate-800 font-semibold text-blue-900 truncate">
+                                          {[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">พนักงานขาย:</span>
+                                        <span className="text-slate-800 truncate">{exportTargetJob.salesRep || '-'}</span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">วันที่ปฏิบัติงาน:</span>
+                                        <span className="text-slate-800 truncate">
+                                          <strong className="text-slate-900">{exportTargetJob.startServiceDate || '-'}</strong>
+                                          {exportTargetJob.resolutionDate && exportTargetJob.resolutionDate !== exportTargetJob.startServiceDate && (
+                                            <span className="text-slate-500 text-[10px] ml-1">(เสร็จ: {exportTargetJob.resolutionDate})</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-baseline gap-1 text-[11px]">
+                                        <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">วันหมดประกัน:</span>
+                                        <span className="text-slate-800 truncate">{exportTargetJob.warrantyExpiryDate || '-'}</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             ) : (
                               /* SIMPLE VIEW HEADER */
-                              <div className="space-y-4 mb-3">
-                                <div className="border-b-2 border-emerald-600 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <div className="bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded tracking-wider">ใบงาน</div>
-                                      <h1 className="text-lg font-extrabold text-emerald-950">SERVICE WORK ORDER</h1>
+                              <div className="space-y-3 mb-3">
+                                <div className="border-b-2 border-emerald-700 pb-3 flex justify-between items-start gap-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white font-black text-sm w-12 h-12 rounded-xl flex items-center justify-center shadow-xs shrink-0 tracking-wider">
+                                      WSS
                                     </div>
-                                    <p className="text-gray-600 font-bold mt-0.5 text-[11px]">ฝ่ายสนับสนุนด้านเทคนิคและซ่อมบำรุง (Technical Support)</p>
-                                    <p className="text-gray-500 text-[10px] mt-0.5">
-                                      Email: <span className="font-semibold text-emerald-700">wssservice.wins@gmail.com</span> | โทร: <span className="font-semibold text-emerald-700">085 502 9624</span>
-                                    </p>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h1 className="text-xl font-extrabold text-emerald-950 tracking-tight">ใบมอบหมายงาน / ใบงาน</h1>
+                                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded uppercase tracking-wider">WORK ORDER</span>
+                                      </div>
+                                      <p className="text-slate-600 font-bold text-[11px] mt-0.5">ฝ่ายสนับสนุนด้านเทคนิคและบริการลูกค้า (Technical Support & Service)</p>
+                                      <div className="flex items-center gap-3 text-slate-500 text-[10px] mt-1">
+                                        <span>📧 <strong className="text-slate-700">wssservice.wins@gmail.com</strong></span>
+                                        <span>•</span>
+                                        <span>📞 <strong className="text-slate-700">085 502 9624</strong></span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-right">
-                                    <div className="text-gray-400 uppercase font-bold text-[9px] tracking-wider">หมายเลขเอกสาร / DOC NO.</div>
-                                    <div className="text-base font-extrabold text-emerald-700 font-mono">{exportTargetJob.jobNo}</div>
+
+                                  <div className="bg-emerald-50/60 border border-emerald-200 rounded-lg p-2.5 text-right min-w-[200px] shadow-2xs">
+                                    <div className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider">หมายเลขเอกสาร (DOC NO.)</div>
+                                    <div className="text-base font-extrabold text-emerald-800 font-mono tracking-tight">{exportTargetJob.jobNo}</div>
+                                    
                                     {exportTargetJob.referenceDocument && (
-                                      <div className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5">
-                                        เอกสารอ้างอิง: {exportTargetJob.referenceDocument}
+                                      <div className="text-[10px] font-semibold text-slate-700 mt-0.5">
+                                        <span className="text-slate-400">อ้างอิง:</span> <span className="font-bold text-emerald-900 bg-emerald-100/60 px-1.5 py-0.5 rounded border border-emerald-200">{exportTargetJob.referenceDocument}</span>
                                       </div>
                                     )}
+
+                                    <div className="flex items-center justify-end gap-1.5 mt-1.5 pt-1.5 border-t border-emerald-200 text-[10px]">
+                                      <span className="text-slate-500">สถานะ:</span>
+                                      <span className="px-2 py-0.5 rounded-full font-bold text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        {exportTargetJob.status === 'Resolved' ? 'แก้ไขเสร็จสิ้น' :
+                                         exportTargetJob.status === 'In Progress' ? 'กำลังดำเนินการ' :
+                                         exportTargetJob.status === 'Pending' ? 'รอดำเนินการ' : 'เปิดงาน'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
-                                  <div className="bg-emerald-50/40 p-3 rounded-lg border border-emerald-100 text-[11px] space-y-1">
-                                    <div className="text-emerald-900 font-extrabold uppercase text-[10px] pb-1 border-b border-emerald-100">
-                                      ข้อมูลลูกค้า (Customer Info)
+                                  <div className="bg-emerald-50/30 p-3 rounded-lg border border-emerald-100 text-[11px] space-y-1 shadow-2xs">
+                                    <div className="text-emerald-950 font-bold uppercase text-[10.5px] pb-1.5 mb-2 border-b border-emerald-100">
+                                      ข้อมูลลูกค้า (Customer Details)
                                     </div>
-                                    <div><span className="text-gray-500 font-medium">บริษัท:</span> <strong className="text-gray-900">{exportTargetJob.customerCompany}</strong></div>
-                                    <div><span className="text-gray-500 font-medium">สถานที่ทำงาน:</span> <span className="text-gray-800">{exportTargetJob.serviceLocation || exportTargetJob.customerAddress || '-'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">ผู้ติดต่อ:</span> <span className="text-gray-800">{exportTargetJob.contactName} {exportTargetJob.contactPhone ? `(${exportTargetJob.contactPhone})` : ''}</span></div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">ชื่อบริษัท:</span>
+                                      <strong className="text-slate-900 font-bold truncate">{exportTargetJob.customerCompany}</strong>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">สถานที่ทำงาน:</span>
+                                      <span className="text-slate-800 truncate">{exportTargetJob.serviceLocation || exportTargetJob.customerAddress || '-'}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[70px]">ผู้ติดต่อ:</span>
+                                      <span className="text-slate-800 truncate">{exportTargetJob.contactName} {exportTargetJob.contactPhone ? `(${exportTargetJob.contactPhone})` : ''}</span>
+                                    </div>
                                   </div>
 
-                                  <div className="bg-emerald-50/40 p-3 rounded-lg border border-emerald-100 text-[11px] space-y-1">
-                                    <div className="text-emerald-900 font-extrabold uppercase text-[10px] pb-1 border-b border-emerald-100 flex items-center justify-between">
-                                      <span>ข้อมูลการบริการ (Service Info)</span>
-                                      <span className="font-bold text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                                        {exportTargetJob.status}
+                                  <div className="bg-emerald-50/30 p-3 rounded-lg border border-emerald-100 text-[11px] space-y-1 shadow-2xs">
+                                    <div className="text-emerald-950 font-bold uppercase text-[10.5px] pb-1.5 mb-2 border-b border-emerald-100 flex items-center justify-between">
+                                      <span>ข้อมูลการบริการ (Service Details)</span>
+                                      <span className="text-[9.5px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded truncate max-w-[130px]">
+                                        {exportTargetJob.serviceType}
                                       </span>
                                     </div>
-                                    <div><span className="text-gray-500 font-medium">ประเภทบริการ:</span> <strong className="text-emerald-800">{exportTargetJob.serviceType}</strong></div>
-                                    <div><span className="text-gray-500 font-medium">ผู้ปฏิบัติงาน:</span> <span className="text-gray-800">{[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}</span></div>
-                                    <div><span className="text-gray-500 font-medium">วันที่เข้าปฏิบัติงาน:</span> <span className="text-gray-800">{exportTargetJob.startServiceDate || '-'}</span></div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">ผู้ปฏิบัติงาน:</span>
+                                      <span className="text-slate-800 font-semibold text-emerald-900 truncate">{[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '-'}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">วันที่ปฏิบัติงาน:</span>
+                                      <span className="text-slate-800 font-semibold truncate">{exportTargetJob.startServiceDate || '-'}</span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 text-[11px]">
+                                      <span className="text-slate-500 font-medium whitespace-nowrap min-w-[80px]">บริษัทคู่ค้า:</span>
+                                      <span className="text-slate-800 truncate">{exportTargetJob.partnerCompany || '-'}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             )
                           ) : (
                             /* CONTINUATION HEADER FOR PAGE 2, 3, etc. */
-                            <div className="border-b-2 border-blue-600 pb-2 mb-4 flex justify-between items-center bg-blue-50/60 p-2.5 rounded-lg border border-blue-100">
+                            <div className="border-b-2 border-blue-700 pb-2 mb-3 flex justify-between items-center bg-blue-50/70 p-2.5 rounded-lg border border-blue-100">
                               <div className="flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-blue-700" />
+                                <div className="bg-blue-700 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">WSS</div>
                                 <span className="font-extrabold text-blue-950 text-xs">
-                                  {reportViewMode === 'full' ? 'รายงานสรุปการบริการ (ต่อ)' : 'ใบงาน / SERVICE WORK ORDER (ต่อ)'}
+                                  {reportViewMode === 'full' ? 'รายงานสรุปการบริการ (ต่อ)' : 'ใบงาน / WORK ORDER (ต่อ)'}
                                 </span>
-                                <span className="text-gray-400 text-[10px]">|</span>
-                                <span className="text-gray-700 text-[11px] font-semibold">ลูกค้า: {exportTargetJob.customerCompany}</span>
+                                <span className="text-slate-300 text-[10px]">|</span>
+                                <span className="text-slate-700 text-[11px] font-semibold">ลูกค้า: {exportTargetJob.customerCompany}</span>
                               </div>
                               <div className="text-right">
-                                <span className="text-[10px] font-bold text-gray-500 mr-1.5">เลขที่ใบงาน:</span>
+                                <span className="text-[10px] font-bold text-slate-400 mr-1.5">JOB NO:</span>
                                 <span className="text-xs font-mono font-extrabold text-blue-700">{exportTargetJob.jobNo}</span>
                                 {exportTargetJob.referenceDocument && (
-                                  <span className="text-[9px] text-gray-500 ml-2">(อ้างอิง: {exportTargetJob.referenceDocument})</span>
+                                  <span className="text-[9.5px] text-slate-500 ml-2 font-medium">(อ้างอิง: {exportTargetJob.referenceDocument})</span>
                                 )}
                               </div>
                             </div>
                           )}
 
                           {/* Render this Page's Content Sections */}
-                          <div className="space-y-3 mt-2">
-                            {pageSections.map((sec) => (
-                              <div 
-                                key={sec.id} 
-                                className={`p-3 rounded-lg border shadow-2xs ${
-                                  reportViewMode === 'full' 
-                                    ? 'border-l-4 border-l-blue-600 border-t-gray-200 border-r-gray-200 border-b-gray-200 bg-slate-50/80' 
-                                    : 'border-l-4 border-l-emerald-600 border-t-gray-200 border-r-gray-200 border-b-gray-200 bg-emerald-50/20'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-gray-200">
-                                  <h3 className="font-bold text-gray-900 text-[11px] flex items-center gap-1.5">
-                                    <span className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-black ${
-                                      reportViewMode === 'full' ? 'bg-blue-600' : 'bg-emerald-600'
-                                    }`}>
-                                      {sec.num}
-                                    </span>
-                                    <span>{sec.title}</span>
-                                  </h3>
-                                  {sec.titleEn && <span className="text-[9px] font-medium text-gray-400">{sec.titleEn}</span>}
+                          <div className="space-y-2.5 mt-2">
+                            {pageSections.map((sec) => {
+                              const isActionTaken = sec.id.startsWith('actionTaken');
+                              return (
+                                <div 
+                                  key={sec.id} 
+                                  className={`p-3 rounded-lg border shadow-2xs transition-all ${
+                                    isActionTaken
+                                      ? (reportViewMode === 'full' 
+                                          ? 'border-l-4 border-l-blue-700 border-t-blue-100 border-r-blue-100 border-b-blue-100 bg-blue-50/30' 
+                                          : 'border-l-4 border-l-emerald-700 border-t-emerald-100 border-r-emerald-100 border-b-emerald-100 bg-emerald-50/30')
+                                      : 'border-l-4 border-l-slate-400 border-t-slate-200 border-r-slate-200 border-b-slate-200 bg-slate-50/60'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-slate-200/80">
+                                    <h3 className="font-bold text-slate-900 text-[11.5px] flex items-center gap-1.5">
+                                      <span className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-extrabold shadow-2xs ${
+                                        isActionTaken 
+                                          ? (reportViewMode === 'full' ? 'bg-blue-700' : 'bg-emerald-700') 
+                                          : 'bg-slate-600'
+                                      }`}>
+                                        {sec.num}
+                                      </span>
+                                      <span className={isActionTaken ? 'text-blue-950 font-extrabold' : 'text-slate-900'}>{sec.title}</span>
+                                    </h3>
+                                    {sec.titleEn && <span className="text-[9.5px] font-medium text-slate-400 italic">{sec.titleEn}</span>}
+                                  </div>
+                                  <p className="text-[11px] text-slate-800 whitespace-pre-wrap pl-1 leading-relaxed">{sec.content || '-'}</p>
                                 </div>
-                                <p className="text-[11px] text-gray-800 whitespace-pre-wrap pl-1 leading-relaxed">{sec.content || '-'}</p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 
-                        {/* Bottom Area: Signatures (on Last Content Page) & Page Footer */}
+                        {/* Bottom Area: Signatures (on Last Content Page if enabled) & Page Footer */}
                         <div className="pt-2">
-                          {isLastContentPage && (
-                            <div className="pt-2 pb-2 grid grid-cols-2 gap-8 text-center border-t border-gray-200 mt-2">
-                              {/* Technician signature */}
-                              <div className="flex flex-col items-center justify-end h-24 space-y-1">
-                                <div className="text-gray-700 font-bold text-[11px]">ผู้ปฏิบัติงาน / ช่างเทคนิค</div>
-                                {processedOperatorSig ? (
-                                  <div className="h-12 flex items-center justify-center">
-                                    <img src={processedOperatorSig} alt="Operator Signature" className="max-h-12 object-contain" referrerPolicy="no-referrer" />
+                          {isLastContentPage && includeSignatures && (
+                            <div className="pt-2 pb-1 border-t border-slate-200 mt-2">
+                              <p className="text-[9.5px] text-slate-500 text-center mb-2 italic">
+                                * ข้าพเจ้าได้ตรวจสอบและรับมอบงานบริการตามรายการข้างต้นเป็นที่เรียบร้อยและถูกต้องสมบูรณ์
+                              </p>
+                              <div className="grid grid-cols-2 gap-6 text-center">
+                                {/* Technician signature box */}
+                                <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28 shadow-2xs">
+                                  <div className="text-slate-800 font-bold text-[10.5px] pb-1 border-b border-slate-200">
+                                    ผู้ปฏิบัติงาน / ช่างเทคนิค (Service Engineer)
                                   </div>
-                                ) : (
-                                  <div className="h-12 border-b border-gray-300 w-44 mx-auto"></div>
-                                )}
-                                <div className="text-gray-600 text-[10px]">
-                                  ({[exportTargetJob.operator1, exportTargetJob.operator2].filter(Boolean).join(', ') || '................................................'})
+                                  <div className="h-12 flex items-center justify-center my-auto">
+                                    {processedOperatorSig ? (
+                                      <img src={processedOperatorSig} alt="Operator Signature" className="max-h-11 object-contain" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="border-b border-dashed border-slate-300 w-40 mx-auto mt-4"></div>
+                                    )}
+                                  </div>
+                                  <div className="text-slate-700 text-[10px] font-medium truncate px-1">
+                                    ({exportTargetJob.operator1 || exportTargetJob.operator2 || '................................................'})
+                                  </div>
+                                  <div className="text-slate-400 text-[9px]">วันที่ (Date): ______ / ______ / __________</div>
                                 </div>
-                              </div>
 
-                              {/* Customer signature */}
-                              <div className="flex flex-col items-center justify-end h-24 space-y-1">
-                                <div className="text-gray-700 font-bold text-[11px]">ลูกค้า / ผู้รับมอบงาน</div>
-                                {processedCustomerSig ? (
-                                  <div className="h-12 flex items-center justify-center">
-                                    <img src={processedCustomerSig} alt="Customer Signature" className="max-h-12 object-contain" referrerPolicy="no-referrer" />
+                                {/* Customer signature box */}
+                                <div className="bg-slate-50/80 border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between h-28 shadow-2xs">
+                                  <div className="text-slate-800 font-bold text-[10.5px] pb-1 border-b border-slate-200">
+                                    ลูกค้า / ผู้ตรวจรับมอบงาน (Customer Acceptance)
                                   </div>
-                                ) : (
-                                  <div className="h-12 border-b border-gray-300 w-44 mx-auto"></div>
-                                )}
-                                <div className="text-gray-600 text-[10px]">
-                                  ({exportTargetJob.contactName || '................................................'})
+                                  <div className="h-12 flex items-center justify-center my-auto">
+                                    {processedCustomerSig ? (
+                                      <img src={processedCustomerSig} alt="Customer Signature" className="max-h-11 object-contain" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="border-b border-dashed border-slate-300 w-40 mx-auto mt-4"></div>
+                                    )}
+                                  </div>
+                                  <div className="text-slate-700 text-[10px] font-medium truncate px-1">
+                                    ({exportTargetJob.contactName || '................................................'})
+                                  </div>
+                                  <div className="text-slate-400 text-[9px]">วันที่ (Date): ______ / ______ / __________</div>
                                 </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Footer */}
-                          <div className="flex justify-between items-center text-[9px] text-gray-400 border-t border-gray-200 pt-2 mt-1">
-                            <span>TechLink V1.1 - เอกสารรายงานการปฏิบัติงาน Onsite Service</span>
-                            <span className="font-mono font-semibold text-gray-500">JOB NO: {exportTargetJob.jobNo}</span>
-                            <span className="font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                          {/* Page Footer */}
+                          <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-200 pt-2 mt-2">
+                            <span className="font-medium">เอกสารรายงานผลการให้บริการ Onsite Service</span>
+                            <span className="font-mono font-bold text-slate-500">JOB: {exportTargetJob.jobNo}</span>
+                            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                               หน้า {pageNumber} จาก {grandTotalPages}
                             </span>
                           </div>
@@ -1952,54 +2111,69 @@ export default function OnsiteServiceTab({
                     return (
                       <div 
                         key={`photo-page-${photoPageIdx}`}
-                        className="pdf-page bg-white p-9 shadow-md border border-gray-300 text-xs text-gray-800 leading-relaxed shrink-0 w-[794px] min-h-[1123px] max-h-[1123px] h-[1123px] flex flex-col justify-between box-border overflow-hidden select-text"
+                        className="pdf-page bg-white p-8 sm:p-9 shadow-lg border border-slate-300 text-xs text-slate-800 leading-relaxed shrink-0 w-[794px] min-h-[1123px] max-h-[1123px] h-[1123px] flex flex-col justify-between box-border overflow-hidden select-text"
                       >
                         <div>
-                          {/* Photo Appendix Header */}
-                          <div className="border-b-2 border-blue-600 pb-2.5 mb-4 flex justify-between items-center bg-blue-50/50 p-2.5 rounded-lg border border-blue-100">
-                            <div>
-                              <h3 className="font-extrabold text-blue-900 text-sm flex items-center gap-2">
-                                <ImageIcon className="w-4 h-4 text-blue-600" />
-                                <span>ภาคผนวก: รูปถ่ายบันทึกการปฏิบัติงาน (Photo Appendix)</span>
-                              </h3>
-                              <p className="text-gray-500 text-[10px] mt-0.5">
-                                รูปที่ {fromPhoto} - {toPhoto} จากทั้งหมด {processedPhotos.length} รูป
-                              </p>
+                          {/* Photo Appendix Header Banner */}
+                          <div className="border-b-2 border-blue-700 pb-2.5 mb-4 flex justify-between items-center bg-blue-50/60 p-3 rounded-lg border border-blue-100 shadow-2xs">
+                            <div className="flex items-center gap-2.5">
+                              <div className="bg-blue-700 text-white p-1.5 rounded-lg shadow-2xs">
+                                <ImageIcon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h3 className="font-extrabold text-blue-950 text-sm">
+                                  ภาคผนวก: รูปถ่ายบันทึกการปฏิบัติงาน (Photo Appendix)
+                                </h3>
+                                <p className="text-slate-500 text-[10px] mt-0.5">
+                                  แสดงรูปภาพที่ <strong className="text-blue-900">{fromPhoto} - {toPhoto}</strong> จากทั้งหมด {processedPhotos.length} รูป
+                                </p>
+                              </div>
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-extrabold text-blue-700 font-mono">{exportTargetJob.jobNo}</div>
                               {exportTargetJob.referenceDocument && (
-                                <div className="text-[10px] font-semibold text-gray-500">อ้างอิง: {exportTargetJob.referenceDocument}</div>
+                                <div className="text-[10px] font-semibold text-slate-500">อ้างอิง: {exportTargetJob.referenceDocument}</div>
                               )}
                             </div>
                           </div>
 
-                          {/* 6 Photos Grid */}
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                          {/* 6 Photos Grid (2x3 Equal Sized Cards) */}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-3.5">
                             {chunk.map((p, itemIdx) => {
                               const globalIdx = photoPageIdx * 6 + itemIdx;
                               return (
-                                <div key={itemIdx} className="border border-gray-200 p-2.5 rounded-lg bg-gray-50/90 text-center flex flex-col justify-between shadow-2xs">
-                                  <div className="font-bold text-gray-700 text-[10px] flex justify-between items-center px-1 pb-1">
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-3.5 h-3.5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[8px] font-bold">{globalIdx + 1}</span>
-                                      <span>รูปถ่ายที่ {globalIdx + 1}</span>
+                                <div key={itemIdx} className="border border-slate-200 p-2.5 rounded-lg bg-slate-50/70 text-center flex flex-col justify-between shadow-2xs">
+                                  <div className="font-bold text-slate-700 text-[10px] flex justify-between items-center px-1 pb-1 border-b border-slate-200">
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="w-3.5 h-3.5 rounded-full bg-blue-700 text-white flex items-center justify-center text-[8px] font-extrabold shadow-2xs">{globalIdx + 1}</span>
+                                      <span className="font-bold text-slate-800">รูปถ่ายที่ {globalIdx + 1}</span>
                                     </span>
                                     {p.timestamp && (
-                                      <span className="text-[9px] font-normal text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                                      <span className="text-[9px] font-medium text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
                                         {new Date(p.timestamp).toLocaleDateString('th-TH')}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="aspect-[16/10] w-full rounded overflow-hidden bg-white border border-gray-200 flex items-center justify-center max-h-40 my-1">
+
+                                  {/* Photo Image Frame */}
+                                  <div className="aspect-[16/10] w-full rounded overflow-hidden bg-white border border-slate-200 flex items-center justify-center max-h-40 my-1.5 shadow-2xs">
                                     {p.url ? (
                                       <img src={p.url} alt={`Photo ${globalIdx + 1}`} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
                                     ) : (
-                                      <div className="text-gray-400 text-xs">ไม่มีรูปภาพ</div>
+                                      <div className="text-slate-400 text-xs flex flex-col items-center gap-1">
+                                        <ImageIcon className="w-6 h-6 text-slate-300" />
+                                        <span>ไม่มีรูปภาพ</span>
+                                      </div>
                                     )}
                                   </div>
-                                  <div className="font-semibold text-gray-800 text-[10px] bg-white p-1.5 rounded border border-gray-200 min-h-[28px] flex items-center justify-center text-center">
-                                    {p.caption || 'ไม่มีคำบรรยายใต้ภาพ'}
+
+                                  {/* Caption Block */}
+                                  <div className="font-medium text-slate-800 text-[10.5px] bg-white p-1.5 rounded border border-slate-200 min-h-[30px] flex items-center justify-center text-center leading-snug">
+                                    {p.caption ? (
+                                      <span>{p.caption}</span>
+                                    ) : (
+                                      <span className="text-slate-400 italic text-[9.5px]">- ไม่มีคำบรรยายใต้ภาพ -</span>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -2008,10 +2182,10 @@ export default function OnsiteServiceTab({
                         </div>
 
                         {/* Photo Appendix Footer */}
-                        <div className="flex justify-between items-center text-[9px] text-gray-400 border-t border-gray-200 pt-2 mt-2">
-                          <span>TechLink V1.1 - ภาคผนวกรูปถ่ายบันทึกการปฏิบัติงาน</span>
-                          <span className="font-mono font-semibold text-gray-500">JOB NO: {exportTargetJob.jobNo}</span>
-                          <span className="font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                        <div className="flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-200 pt-2 mt-2">
+                          <span className="font-medium">ภาคผนวกรูปถ่ายบันทึกการปฏิบัติงาน Onsite Service</span>
+                          <span className="font-mono font-bold text-slate-500">JOB: {exportTargetJob.jobNo}</span>
+                          <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             หน้า {photoPageNumber} จาก {grandTotalPages}
                           </span>
                         </div>
