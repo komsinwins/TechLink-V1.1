@@ -49,8 +49,6 @@ export default function App() {
 
   // Loader state
   const [isLoading, setIsLoading] = useState(true);
-  const [showCleanupToast, setShowCleanupToast] = useState(false);
-  const [cleanedPhotosCount, setCleanedPhotosCount] = useState(0);
 
   // Selected details passing for navigation triggers
   const [selectedOnsiteForView, setSelectedOnsiteForView] = useState<OnsiteService | null>(null);
@@ -141,45 +139,6 @@ export default function App() {
       unsubSettings();
     };
   }, []);
-
-  // 2. Scan and Auto-purge photos older than 30 days
-  useEffect(() => {
-    if (onsiteJobs.length > 0) {
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      const now = Date.now();
-      let totalPurged = 0;
-
-      const triggerCleanup = async () => {
-        for (const job of onsiteJobs) {
-          if (!job.id || !job.photos || job.photos.length === 0) continue;
-          
-          let jobModified = false;
-          const remainingPhotos = job.photos.filter(photo => {
-            const age = now - photo.timestamp;
-            const isExpired = age > thirtyDaysMs;
-            if (isExpired) {
-              totalPurged++;
-              jobModified = true;
-            }
-            return !isExpired;
-          });
-
-          if (jobModified) {
-            const docRef = doc(db, 'onsiteJobs', job.id);
-            await updateDoc(docRef, { photos: remainingPhotos });
-          }
-        }
-
-        if (totalPurged > 0) {
-          setCleanedPhotosCount(totalPurged);
-          setShowCleanupToast(true);
-          setTimeout(() => setShowCleanupToast(false), 8000);
-        }
-      };
-
-      triggerCleanup();
-    }
-  }, [onsiteJobs.length]);
 
   // Firebase Mutator Actions
   // -- Customers --
@@ -382,17 +341,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans" id="app-root">
-      {/* 30-day Image Cleanup Success Toast notification */}
-      {showCleanupToast && (
-        <div className="fixed bottom-5 right-5 z-50 bg-emerald-600 text-white p-4 rounded-xl shadow-lg border border-emerald-500 max-w-sm animate-bounce flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 mt-0.5 shrink-0" />
-          <div className="text-xs">
-            <div className="font-bold">สแกนฐานข้อมูลเสร็จสมบูรณ์!</div>
-            <div className="mt-1">ลบรูปถ่ายที่หมดอายุ (อายุเกิน 30 วัน) สำเร็จจำนวน <strong>{cleanedPhotosCount} รูปภาพ</strong> เพื่อประหยัดพื้นที่ฐานข้อมูลแล้ว</div>
-          </div>
-        </div>
-      )}
-
       {/* Main Top Navbar (Bright High Density Blue Theme) */}
       <header className="bg-blue-700 text-white shadow-sm sticky top-0 z-40 border-b border-blue-800">
         <div className="max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-4 h-12 flex items-center justify-between">

@@ -192,39 +192,29 @@ export async function convertDriveUrlToBase64(url: string, token: string | null)
   if (!url) return '';
   if (url.startsWith('data:')) return url; // Already base64 format
 
-  // Extract Google Drive File ID
+  // Extract Google Drive File ID from various patterns
   let fileId = '';
-  // Match standard /file/d/(ID)/view format
-  const dMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  const trimmed = url.trim();
+  
+  // 1. Standard /file/d/(ID) or /d/(ID)
+  const dMatch = trimmed.match(/\/(?:file\/)?d\/([a-zA-Z0-9_-]{20,})/);
   if (dMatch && dMatch[1]) {
     fileId = dMatch[1];
   } else {
-    // Match queries like ?id=(ID)
-    const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    // 2. Query param like ?id=(ID) or &id=(ID)
+    const idMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
     if (idMatch && idMatch[1]) {
       fileId = idMatch[1];
-    }
-  }
-
-  // If we couldn't parse a file ID, or if it is not a Google Drive URL, fetch it directly
-  if (!fileId) {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) {
-      console.warn("convertDriveUrlToBase64: Failed direct fetch, returning original url:", e);
-      return url;
+    } else {
+      // 3. Raw file ID (alphanumeric 25-50 characters without slashes)
+      if (/^[a-zA-Z0-9_-]{25,50}$/.test(trimmed)) {
+        fileId = trimmed;
+      }
     }
   }
 
   // If we have a fileId and a token, fetch via the Google Drive API v3
-  if (token) {
+  if (fileId && token) {
     try {
       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
         headers: {
@@ -233,7 +223,7 @@ export async function convertDriveUrlToBase64(url: string, token: string | null)
       });
       if (res.ok) {
         const blob = await res.blob();
-        return new Promise((resolve, reject) => {
+        return await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result as string);
           reader.onerror = reject;
@@ -247,21 +237,41 @@ export async function convertDriveUrlToBase64(url: string, token: string | null)
     }
   }
 
-  // Fallback: Try downloading via the public export endpoint
-  try {
-    const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (err) {
-    console.error(`convertDriveUrlToBase64: Fallback direct fetch failed for file ${fileId}:`, err);
-    // Ultimate fallback: return original url
-    return url;
+  // If we have a fileId, try the direct Google Drive download endpoint
+  if (fileId) {
+    try {
+      const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch (err) {
+      // ignore
+    }
   }
+
+  // Fallback: Direct fetch of the url
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (res.ok) {
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (e) {
+    // Return original url if fetch fails
+  }
+
+  return url;
 }
 
 function parsePercentOrFloat(str: string, maxVal: number): number {
