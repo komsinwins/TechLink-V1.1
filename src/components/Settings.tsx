@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Settings as SettingsIcon, Save, Info } from 'lucide-react';
+import { Plus, Trash2, Settings as SettingsIcon, Save, Info, RotateCcw } from 'lucide-react';
 
 interface SettingsProps {
   dropdownOptions: {
@@ -27,6 +27,61 @@ export default function Settings({ dropdownOptions, onSaveOptions }: SettingsPro
   React.useEffect(() => {
     setLocalOptions({ ...dropdownOptions });
   }, [dropdownOptions]);
+
+  const handleRestoreDefaults = async () => {
+    if (confirm('คุณต้องการกู้คืนตัวเลือกของระบบกลับเป็นค่าเริ่มต้นมาตรฐาน (WSS Company Options) หรือไม่?')) {
+      const restored = {
+        serviceTypes: [
+          'ตรวจสอบมีค่าบริการ',
+          'ตรวจสอบเพื่อประเมินราคาซ่อม',
+          'ตรวจสอบอยู่ในเงื่อนไขรับประกัน',
+          'ติดตั้ง',
+          'ตั่งค่าอุปกรณ์'
+        ],
+        operators: [
+          'นาย คมสิน นาคบาท',
+          'นายกฤตเมธ  พึ่งเนตร',
+          'นายณัฐพล  อ้อยทิพย์',
+          'นายชนะกิจ  งามประดิษฐ์',
+          'นายธีรชัย  เรืองชม'
+        ],
+        salesReps: [
+          'นาย อภิชาติ ตากดำรงค์กุล',
+          'น.ส.ภัทราภรณ์  กิจเกริกกาญจน์',
+          'นาย พสิษฐ์ แถวหมอ'
+        ],
+        productTypes: [
+          'Router/Switch',
+          'Access Point',
+          'Firewall',
+          'IP Phone',
+          'Server/Storage',
+          'UPS',
+          'Access Control',
+          'Analog Camera',
+          'IP Camera'
+        ],
+        reportedCategories: [
+          'CCTV',
+          'ACCESS CONTROL',
+          'Network',
+          'Fire Alarm',
+          'Public Address'
+        ]
+      };
+      setLocalOptions(restored);
+      setIsSaving(true);
+      try {
+        await onSaveOptions(restored);
+        alert('กู้คืนตัวเลือกตั้งค่าของระบบเรียบร้อยแล้ว!');
+      } catch (err) {
+        console.error(err);
+        alert('เกิดข้อผิดพลาดในการกู้คืน');
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
 
   const handleAddOption = (field: keyof typeof dropdownOptions, inputKey: keyof typeof newInputs) => {
     const val = newInputs[inputKey].trim();
@@ -76,14 +131,27 @@ export default function Settings({ dropdownOptions, onSaveOptions }: SettingsPro
           <p className="text-[10px] text-slate-500">จัดการข้อมูลและตัวเลือกที่จะนำไปใช้เป็นทางเลือกในตาราง Onsite, OnCall, การเคลมสินค้า และฐานข้อมูลลูกค้า</p>
         </div>
 
-        <button
-          onClick={handleSaveAll}
-          disabled={isSaving}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-[11px] font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer self-stretch sm:self-auto justify-center"
-        >
-          <Save className="w-3.5 h-3.5" />
-          {isSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่าทั้งหมด'}
-        </button>
+        <div className="flex items-center gap-2 self-stretch sm:self-auto">
+          <button
+            type="button"
+            onClick={handleRestoreDefaults}
+            disabled={isSaving}
+            className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 border border-slate-300 text-slate-700 rounded text-[11px] font-bold hover:bg-slate-200 transition-colors disabled:opacity-50 cursor-pointer justify-center"
+            title="กู้คืนตัวเลือกมาตรฐานของบริษัท WSS"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            กู้คืนตัวเลือกมาตรฐาน WSS
+          </button>
+
+          <button
+            onClick={handleSaveAll}
+            disabled={isSaving}
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-[11px] font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer justify-center"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {isSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่าทั้งหมด'}
+          </button>
+        </div>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex gap-2 text-[11px] text-blue-800 leading-relaxed font-bold">

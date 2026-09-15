@@ -107,6 +107,20 @@
       },
       "required": ["customerCompany"]
     },
+    "Distributor": {
+      "title": "Distributor",
+      "description": "Distributor and vendor contact details",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "address": { "type": "string" },
+        "contacts": { "type": "array" },
+        "claimAddress": { "type": "string" },
+        "claimContacts": { "type": "array" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["companyName"]
+    },
     "DropdownOptions": {
       "title": "DropdownOptions",
       "description": "Global custom dropdown option settings",
@@ -136,6 +150,10 @@
     "claims": {
       "schema": { "$ref": "#/entities/ProductClaim" },
       "description": "Claims collection"
+    },
+    "distributors": {
+      "schema": { "$ref": "#/entities/Distributor" },
+      "description": "Distributors and vendors collection"
     },
     "settings": {
       "schema": { "$ref": "#/entities/DropdownOptions" },

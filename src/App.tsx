@@ -22,12 +22,44 @@ import {
 } from 'lucide-react';
 
 // Default Dropdown selections
-const DEFAULT_OPTIONS: DropdownOptions = {
-  serviceTypes: ['Maintenance', 'Installation', 'Troubleshooting', 'Consultation', 'Network Setup', 'Hardware Repair'],
-  operators: ['ช่างอนันต์ รักดี', 'ช่างสมชาย ใจบุญ', 'ช่างวีระ ศรีสุข', 'ช่างมนัส แสงทอง'],
-  salesReps: ['เซลส์พัชราภรณ์', 'เซลส์ธนพล', 'เซลส์วิชัย', 'เซลส์สุภาวรรณ'],
-  productTypes: ['Router/Switch', 'Access Point', 'Firewall', 'CCTV Camera', 'IP Phone', 'Server/Storage', 'UPS'],
-  reportedCategories: ['อินเทอร์เน็ตใช้งานไม่ได้', 'อุปกรณ์เปิดไม่ติด', 'สัญญาณ Wi-Fi อ่อน', 'ตั้งค่าอุปกรณ์ใหม่', 'สายแลน/ออปติกชำรุด', 'ระบบล่ม']
+export const DEFAULT_OPTIONS: DropdownOptions = {
+  serviceTypes: [
+    'ตรวจสอบมีค่าบริการ',
+    'ตรวจสอบเพื่อประเมินราคาซ่อม',
+    'ตรวจสอบอยู่ในเงื่อนไขรับประกัน',
+    'ติดตั้ง',
+    'ตั่งค่าอุปกรณ์'
+  ],
+  operators: [
+    'นาย คมสิน นาคบาท',
+    'นายกฤตเมธ  พึ่งเนตร',
+    'นายณัฐพล  อ้อยทิพย์',
+    'นายชนะกิจ  งามประดิษฐ์',
+    'นายธีรชัย  เรืองชม'
+  ],
+  salesReps: [
+    'นาย อภิชาติ ตากดำรงค์กุล',
+    'น.ส.ภัทราภรณ์  กิจเกริกกาญจน์',
+    'นาย พสิษฐ์ แถวหมอ'
+  ],
+  productTypes: [
+    'Router/Switch',
+    'Access Point',
+    'Firewall',
+    'IP Phone',
+    'Server/Storage',
+    'UPS',
+    'Access Control',
+    'Analog Camera',
+    'IP Camera'
+  ],
+  reportedCategories: [
+    'CCTV',
+    'ACCESS CONTROL',
+    'Network',
+    'Fire Alarm',
+    'Public Address'
+  ]
 };
 
 export default function App() {

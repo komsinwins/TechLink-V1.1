@@ -26,6 +26,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Allow public access to distributors
+    match /distributors/{distributorId} {
+      allow read, write: if true;
+    }
+
     // Allow public access to settings
     match /settings/{settingId} {
       allow read, write: if true;
